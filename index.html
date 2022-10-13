@@ -7,17 +7,27 @@
   </head>
   <body>
     <div id="content">
-      <div id="grid">
-        <itmas-cloth>
+      <div id="card">
+        <div id="controls">
+          <button id="clear">Clear</button>
+          <itmas-palette id="palette"></itmas-palette>
+        </div>
+        <div id="grid">
+          <itmas-cloth id="top-view">
             <span slot="title">Top View</span>
-        </itmas-cloth>
-        <itmas-cloth>
+          </itmas-cloth>
+          <itmas-cloth id="front-view">
             <span slot="title">Front View</span>
-        </itmas-cloth>
-        <itmas-cloth>
+          </itmas-cloth>
+          <itmas-cloth id="side-view">
             <span slot="title">Side View</span>
-        </itmas-cloth>
-        <canvas id="three-canvas"></canvas>
+          </itmas-cloth>
+          <canvas id="three-canvas"></canvas>
+        </div>
+      </div>
+      <div id="layers">
+        <button id="add-layer">+</button>
+        <itmas-layer></itmas-layer>
       </div>
     </div>
   </body>
