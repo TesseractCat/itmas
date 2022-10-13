@@ -1,5 +1,7 @@
 import './cloth';
 import './palette';
+import './layer';
+
 import { Scene, PerspectiveCamera, WebGLRenderer,
          Mesh, BoxGeometry, MeshBasicMaterial,
          CanvasTexture } from 'three';
@@ -18,20 +20,12 @@ window.onload = function() {
     const renderer = new WebGLRenderer({canvas: canvas});
     renderer.setClearColor(0xffffff);
 
-    const views = [
-        document.getElementById("top-view").textures[0],
-        document.getElementById("front-view").textures[0],
-        document.getElementById("side-view").textures[0],
+    const cloths = [
+        document.getElementById("top-view"),
+        document.getElementById("front-view"),
+        document.getElementById("side-view"),
     ];
-
-    const geometry = new BoxGeometry(1, 1, 1);
-    const material = new VolumeMaterial({
-        topView: views[0],
-        frontView: views[1],
-        sideView: views[2],
-    });
-    const cube = new Mesh(geometry, material);
-    scene.add(cube);
+    const views = cloths.map(x => x.textures);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -47,13 +41,47 @@ window.onload = function() {
     render();
 
     document.getElementById("palette").addEventListener("change", (e) => {
-        for (let cloth of document.getElementsByTagName("itmas-cloth")) {
+        for (let cloth of cloths)
             cloth.color = e.detail;
-        }
     });
     document.getElementById("clear").addEventListener("click", () => {
-        for (let cloth of document.getElementsByTagName("itmas-cloth")) {
+        for (let cloth of cloths)
             cloth.clear();
+    });
+
+    function addLayer() {
+        const layers = document.getElementById("layers");
+        let layer = parseInt(layers.dataset.count);
+        layers.dataset.count = layer + 1;
+
+        let layerTab = document.createElement("itmas-layer");
+        layerTab.setAttribute("layer", layers.dataset.count);
+        layerTab.addEventListener("click", () => {
+            document.querySelector("itmas-layer.selected")?.classList.remove("selected");
+            layerTab.classList.add("selected");
+            for (let cloth of cloths) {
+                cloth.loadLayer(layer);
+            }
+        });
+        layers.children[1].after(layerTab);
+
+        for (let cloth of cloths) {
+            cloth.addLayer();
         }
-    })
+        layerTab.click();
+    }
+
+    document.getElementById("add-layer").addEventListener("click", () => {
+        addLayer();
+    });
+    addLayer();
+
+    const geometry = new BoxGeometry(1, 1, 1);
+    const material = new VolumeMaterial({
+        topViews: views[0],
+        frontViews: views[1],
+        sideViews: views[2],
+    });
+    const cube = new Mesh(geometry, material);
+    scene.add(cube);
 };

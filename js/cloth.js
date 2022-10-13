@@ -1,5 +1,5 @@
 import { aliasedLine } from './aliased';
-import { CanvasTexture } from 'three';
+import { Texture } from 'three';
 
 class Cloth extends HTMLElement {
     canvas;
@@ -7,7 +7,8 @@ class Cloth extends HTMLElement {
     color = "black";
 
     textures = [];
-    layer = 0;
+    layers = [];
+    layer = -1;
 
     mouseDown = false;
 
@@ -24,7 +25,6 @@ class Cloth extends HTMLElement {
         document.addEventListener("mouseup", (e) => this.handleMouseUp(e));
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
-        this.textures = [new CanvasTexture(canvas)];
 
         const title = document.createElement("div");
         title.id = "title";
@@ -75,9 +75,10 @@ canvas {
         this.shadowRoot.append(style, canvas, title);
     }
 
-    clear() {
+    clear(manual = true) {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.invalidate(this.layer);
+        if (manual)
+            this.invalidate(this.layer);
     }
 
     eventToCanvasCoords(e, x, y) {
@@ -95,6 +96,9 @@ canvas {
         };
     }
     handleMouseDown(e) {
+        if (this.layer == -1)
+            return;
+
         this.mouseDown = true;
         if (this.color == "transparent") {
             this.ctx.fillStyle = this.ctx.strokeStyle = "white";
@@ -121,6 +125,23 @@ canvas {
 
     invalidate(layer) {
         this.textures[layer].needsUpdate = true;
+    }
+    addLayer() {
+        this.saveToLayer(this.layer);
+        this.layers.push(null);
+        this.textures.push(new Texture(this.canvas));
+    }
+    saveToLayer(layer) {
+        this.layers[layer] =
+            this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+    }
+    loadLayer(layer) {
+        this.saveToLayer(this.layer);
+        if (this.layer != -1)
+            this.clear(false);
+        this.layer = layer;
+        if (this.layers[this.layer] != null)
+            this.ctx.putImageData(this.layers[this.layer], 0, 0);
     }
 }
 

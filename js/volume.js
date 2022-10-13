@@ -1,20 +1,20 @@
 import { ShaderMaterial, CanvasTexture, DoubleSide } from 'three';
 
 export class VolumeMaterial extends ShaderMaterial {
-    topView;
-    frontView;
-    sideView;
+    topViews;
+    frontViews;
+    sideViews;
 
-    constructor({topView, frontView, sideView}) {
+    constructor({topViews, frontViews, sideViews}) {
         super();
 
-        this.topView = topView;
-        this.frontView = frontView;
-        this.sideView = sideView;
+        this.topViews = topViews;
+        this.frontViews = frontViews;
+        this.sideViews = sideViews;
         
-        this.uniforms["topView"] = { value: topView };
-        this.uniforms["frontView"] = { value: frontView };
-        this.uniforms["sideView"] = { value: sideView };
+        this.uniforms["topViews"] = { type: "tv", value: topViews };
+        this.uniforms["frontViews"] = { type: "tv", value: frontViews };
+        this.uniforms["sideViews"] = { type: "tv", value: sideViews };
 
         this.vertexShader = `
 varying vec3 v_position;
@@ -30,9 +30,9 @@ void main() {
 `
 
         this.fragmentShader = `
-uniform sampler2D topView;
-uniform sampler2D frontView;
-uniform sampler2D sideView;
+uniform sampler2D topViews[4];
+uniform sampler2D frontViews[4];
+uniform sampler2D sideViews[4];
 
 varying vec3 v_position;
 varying vec2 v_uv;
@@ -81,13 +81,21 @@ void main() {
         vec3 p = mix(a, b, i/128.0);
         vec3 mp = p + vec3(0.5,0.5,0.5);
 
-        vec4 t = texture2D(topView, mp.xz);
-        vec4 f = texture2D(frontView, mp.xy);
-        vec4 s = texture2D(sideView, mp.zy);
-        if (t.a > 0.5 && f.a > 0.5 && s.a > 0.5) {
-            gl_FragColor = vec4((t.xyz + f.xyz + s.xyz)/3.0, 1);
-            break;
+        vec4 t = vec4(0,0,0,0);
+        vec4 f = vec4(0,0,0,0);
+        vec4 s = vec4(0,0,0,0);
+        #pragma unroll_loop_start
+        for (int i = 0; i < 4; i++) {
+            t = texture2D(topViews[i], vec2(mp.x, 1.0 - mp.z));
+            f = texture2D(frontViews[i], mp.xy);
+            s = texture2D(sideViews[i], mp.zy);
+
+            if (t.a > 0.5 && f.a > 0.5 && s.a > 0.5) {
+                gl_FragColor = vec4((t.xyz + f.xyz + s.xyz)/3.0, 1);
+                break;
+            }
         }
+        #pragma unroll_loop_end
 
         // vec3 border = abs(mp - vec3(0.5,0.5,0.5));
         // const float width = 0.48;

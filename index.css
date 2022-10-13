@@ -1,6 +1,7 @@
 * {
     box-sizing: border-box;
     user-select: none;
+    font-family: arial;
 }
 button {
     border-radius: 0px;
@@ -25,6 +26,8 @@ button {
     width: 120px;
 }
 #layers * {
+    position: relative;
+
     display:block;
     cursor: pointer;
     color: #222;
@@ -37,15 +40,13 @@ button {
 
     height:60px;
     line-height:60px;
-    font-size:4rem;
 
     margin-top: 20px;
 
-    transition: width 0.05s, margin-bottom 0.05s, box-shadow 0.05s;
+    transition: width 0.05s, transform 0.05s, box-shadow 0.05s;
 }
 #layers button {
-    background-color: #CDC;
-    border-left-color: #BCB;
+    font-size:4rem;
     width: 60px;
 }
 #layers button:hover {
@@ -53,14 +54,32 @@ button {
 }
 #layers button:active, #layers itmas-layer:active {
     box-shadow: 5px 5px #222;
-    margin-bottom:-5px;
+    transform:translate(0px, 5px);
     width: 77px;
 }
 #layers itmas-layer {
     width: 100%;
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+}
+#layers itmas-layer.selected {
+    background-color: #EEC;
+    border-left-color: #DDB;
 }
 #layers itmas-layer:hover {
     width: 120%;
+}
+#layers itmas-layer:active {
+    width: calc(120% + 5px);
+}
+#layers #add-layer {
+    background-color: #CDC;
+    border-left-color: #BCB;
+}
+#layers #remove-layer {
+    background-color: #DCC;
+    border-left-color: #CBB;
 }
 
 #content {
