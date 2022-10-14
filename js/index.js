@@ -11,16 +11,16 @@ import JSZip from 'JSZip';
 
 // TODO:
 //  - Favicon/meta tags
-//  - Layers:
-//      - Preview
 //  - Jump Flood/SDF
 //      - Shading/normals
-//  - Color picking
-//  - Undo/Redo
 //  - Light preview of CSG on cloth
 //  - Camera:
 //      - Min/max zoom
 //      - Expand viewport
+//  - Color picker
+//  - Layers:
+//      - Preview
+//  - Undo/Redo
 
 window.addEventListener('load', () => {
     const scene = new Scene();
@@ -42,7 +42,10 @@ window.addEventListener('load', () => {
     const views = cloths.map(x => x.textures);
 
     const controls = new OrbitControls(camera, renderer.domElement);
+    controls.minDistance = 0.4;
+    controls.maxDistance = 3;
     controls.enableDamping = true;
+
     camera.position.z = 1;
     controls.update();
 
