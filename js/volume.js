@@ -48,7 +48,7 @@ struct Hit {
 };
 
 bool inBox(vec3 p) {
-    return (p.x > 0.0 && p.y > 0.0 && p.z > 0.0 && p.x < 1.0 && p.y < 1.0 && p.z < 1.0);
+    return (p.x > -0.5 && p.y > -0.5 && p.z > -0.5 && p.x < 0.5 && p.y < 0.5 && p.z < 0.5);
 }
 
 bool intersectBox(const vec3 boxMin, const vec3 boxMax, const Ray r, out Hit hit) {
@@ -76,6 +76,9 @@ void main() {
     intersectBox(vec3(-0.5,-0.5,-0.5), vec3(0.5,0.5,0.5), r, hit);
     vec3 a = r.origin + hit.tMin * r.dir;
     vec3 b = r.origin + hit.tMax * r.dir;
+
+    if (inBox(cameraPosition))
+        a = cameraPosition;
 
     for (float i = 0.0; i < 128.0; i++) {
         vec3 p = mix(a, b, i/128.0);

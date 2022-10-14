@@ -3,22 +3,42 @@
     user-select: none;
     font-family: arial;
 }
-button {
+input[type=file] {
+    display:none;
+}
+button, label {
     border-radius: 0px;
     border: 1px solid black;
+    cursor: pointer;
+    text-align: center;
+    padding: 1px 6px;
+    font-size: 0.8em;
 }
 
 #controls {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 10px;
 }
-#palette {
+#controls #shape {
+    line-height: 1.5rem;
+    font-size: 1.5rem;
+}
+#controls #palette {
     height:100%;
-    width:60px;
+    width:55px;
     padding:10px;
     background-color:rgba(0,0,0,0.1);
 }
+#controls #brush {
+    flex-grow: 1;
+    min-height: 0px;
+    height: 100%;
+    width: 50px;
+    appearance: slider-vertical;
+}
+
+
 #layers {
     align-self:flex-end;
     margin-bottom:20px;

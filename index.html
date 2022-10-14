@@ -10,6 +10,11 @@
       <div id="card">
         <div id="controls">
           <button id="clear">Clear</button>
+          <button id="save">Save</button>
+          <input type="file" id="load"></input>
+          <label for="load">Load</label>
+          <button id="shape">&#11044;</button>
+          <input type="range" min="2" max="10" value="5" id="brush"></input>
           <itmas-palette id="palette"></itmas-palette>
         </div>
         <div id="grid">
@@ -25,9 +30,11 @@
           <canvas id="three-canvas"></canvas>
         </div>
       </div>
-      <div id="layers" data-count="0">
-        <button id="remove-layer">-</button>
-        <button id="add-layer">+</button>
+      <div id="layers">
+        <itmas-layer layer="3"></itmas-layer>
+        <itmas-layer layer="2"></itmas-layer>
+        <itmas-layer layer="1"></itmas-layer>
+        <itmas-layer class="selected" layer="0"></itmas-layer>
       </div>
     </div>
   </body>

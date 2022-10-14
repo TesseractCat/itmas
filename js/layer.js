@@ -12,7 +12,7 @@ class Layer extends HTMLElement {
     }
 
     connectedCallback() {
-        this.nameElem.innerText = `[${this.getAttribute("layer")}]`;
+        this.nameElem.innerText = `${parseInt(this.getAttribute("layer")) + 1}`;
     }
 }
 

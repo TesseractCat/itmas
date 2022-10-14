@@ -13,6 +13,7 @@
     "esbuild": "^0.15.10"
   },
   "dependencies": {
+    "jszip": "^3.10.1",
     "three": "^0.145.0"
   }
 }

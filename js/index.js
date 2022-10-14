@@ -7,10 +7,29 @@ import { Scene, PerspectiveCamera, WebGLRenderer,
          CanvasTexture } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VolumeMaterial } from './volume';
+import JSZip from 'JSZip';
 
-window.onload = function() {
+// TODO:
+//  - Favicon/meta tags
+//  - Layers:
+//      - Fix new layer weirdness
+//      - Saving
+//      - Deleting
+//      - Renaming/rearranging?
+//      - Preview
+//  - Jump Flood/SDF
+//      - Shading/normals
+//  - Adjustable color palette
+//  - Undo/Redo
+//  - Light preview of CSG on cloth
+//  - Camera:
+//      - Adjust FOV?
+//      - Min/max zoom
+//      - Expand viewport
+
+window.addEventListener('load', () => {
     const scene = new Scene();
-    const camera = new PerspectiveCamera( 75, 1.0, 0.1, 1000 );
+    const camera = new PerspectiveCamera(60, 1.0, 0.1, 1000);
     const canvas = document.getElementById("three-canvas");
     let {width, height} = canvas.getBoundingClientRect();
     // TODO: On resize, resize
@@ -44,37 +63,86 @@ window.onload = function() {
         for (let cloth of cloths)
             cloth.color = e.detail;
     });
-    document.getElementById("clear").addEventListener("click", () => {
+    document.getElementById("brush").addEventListener("change", (e) => {
         for (let cloth of cloths)
-            cloth.clear();
+            cloth.brushSize = parseInt(e.target.value);
+    });
+    document.getElementById("shape").addEventListener("click", (e) => {
+        if (e.target.textContent == "⬤") {
+            e.target.textContent = "⯀";
+        } else {
+            e.target.textContent = "⬤";
+        }
+        for (let cloth of cloths)
+            cloth.brushSquare = !cloth.brushSquare;
+    });
+    document.getElementById("clear").addEventListener("click", () => {
+        if (confirm("Are you sure you want to clear this layer?")) {
+            for (let cloth of cloths)
+                cloth.clear();
+        }
+    });
+    document.getElementById("save").addEventListener("click", async () => {
+        let zip = new JSZip();
+
+        for (const cloth of cloths) {
+            let folder = zip.folder(cloth.id);
+
+            for (const [i, layer] of (await cloth.serialize()).entries()) {
+                if (layer != null)
+                    folder.file(`layer-${i}.png`, layer);
+            }
+        }
+
+        zip.generateAsync({type:"blob"}).then(function (blob) {
+            let blobUrl = URL.createObjectURL(blob);
+            let link = document.createElement("a");
+            link.href = blobUrl;
+            link.download = "model.zip";
+            link.click();
+        });
+    });
+    document.getElementById("load").addEventListener("change", async (e)  => {
+        const files = e.target.files;
+        if (files.length == 0)
+            return;
+        const file = files[0];
+        let zip = new JSZip();
+        await zip.loadAsync(file);
+
+        for (const cloth of cloths) {
+            let layers = Array(4).fill(null);
+
+            for (let [name, image] of Object.entries(zip.files)) {
+                let match = name.match(new RegExp(`${cloth.id}/layer-(\\d+).png`));
+                if (match != null) {
+                    layers[parseInt(match[1])] = await image.async("blob");
+                    layers[parseInt(match[1])] =
+                        layers[parseInt(match[1])].slice(0, layers[parseInt(match[1])].size, "image/png");
+                }
+            }
+
+            await cloth.deserialize(layers);
+        }
     });
 
-    function addLayer() {
-        const layers = document.getElementById("layers");
-        let layer = parseInt(layers.dataset.count);
-        layers.dataset.count = layer + 1;
+    [...document.getElementsByTagName("itmas-layer")].forEach((layerTab) => {
+        loadingLayers = false;
+        let layer = parseInt(layerTab.getAttribute("layer"));
 
-        let layerTab = document.createElement("itmas-layer");
-        layerTab.setAttribute("layer", layers.dataset.count);
-        layerTab.addEventListener("click", () => {
+        layerTab.addEventListener("click", async () => {
+            if (loadingLayers) {
+                console.warn("Attempted to load layers while loading layers!");
+                return;
+            }
+            loadingLayers = true;
             document.querySelector("itmas-layer.selected")?.classList.remove("selected");
             layerTab.classList.add("selected");
-            for (let cloth of cloths) {
-                cloth.loadLayer(layer);
-            }
+
+            await Promise.all(cloths.map(c => c.loadLayer(layer)));
+            loadingLayers = false;
         });
-        layers.children[1].after(layerTab);
-
-        for (let cloth of cloths) {
-            cloth.addLayer();
-        }
-        layerTab.click();
-    }
-
-    document.getElementById("add-layer").addEventListener("click", () => {
-        addLayer();
     });
-    addLayer();
 
     const geometry = new BoxGeometry(1, 1, 1);
     const material = new VolumeMaterial({
@@ -84,4 +152,4 @@ window.onload = function() {
     });
     const cube = new Mesh(geometry, material);
     scene.add(cube);
-};
+});

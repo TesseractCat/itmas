@@ -45,7 +45,7 @@ export function fastLine(ctx, x1, y1, x2, y2) {
             ctx.rect(x1 + i, (y1 + i * mul)|0, 1, 1)
     }
 }
-export function aliasedLine(ctx, p1, p2, radius) {
+export function aliasedLine(ctx, p1, p2, radius, square = false) {
     let [x1, y1] = p1;
     let [x2, y2] = p2;
 
@@ -78,9 +78,14 @@ export function aliasedLine(ctx, p1, p2, radius) {
     ctx.fill();
 
     // Caps
-    aliasedCircle(ctx, x1, y1, radius);
-    aliasedCircle(ctx, x2, y2, radius);
-    ctx.fill();
+    if (!square) {
+        aliasedCircle(ctx, x1, y1, radius);
+        aliasedCircle(ctx, x2, y2, radius);
+        ctx.fill();
+    } else {
+        ctx.fillRect(Math.floor(x1) - radius, Math.floor(y1) - radius, radius*2, radius*2)
+        ctx.fillRect(Math.floor(x2) - radius, Math.floor(y2) - radius, radius*2, radius*2)
+    }
     // ctx.drawImage(brush, x1 - radius, y1 - radius)
     // ctx.drawImage(brush, x2 - radius, y2 - radius)
 }
