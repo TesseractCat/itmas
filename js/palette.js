@@ -17,7 +17,8 @@ class Palette extends HTMLElement {
             "#877aff",
         ];
 
-        let elements = [];
+        let wrapper = document.createElement("div");
+        wrapper.id = "wrapper";
 
         for (const [i, color] of colors.entries()) {
             let colorInput = document.createElement("input");
@@ -36,7 +37,7 @@ class Palette extends HTMLElement {
                 colorDiv.classList.add("selected");
 
             colorDiv.addEventListener("click", () => {
-                for (const e of elements)
+                for (const e of [...wrapper.getElementsByClassName("selected")])
                     e.classList.remove("selected");
                 colorDiv.classList.add("selected");
 
@@ -66,9 +67,9 @@ class Palette extends HTMLElement {
                 }, false);
             }
             
-            elements.push(colorDiv);
+            wrapper.append(colorDiv);
             if (color != "transparent")
-                elements.push(colorInput);
+                wrapper.append(colorInput);
         }
 
         const style = document.createElement("style");
@@ -89,13 +90,21 @@ input {
     background: none;
 }
 
+#wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-basis: content;
+    height: 100%;
+}
+
 .color {
     display: block;
     border: 3px solid black;
     border-radius: 100%;
 
-    width: 100%;
-    height: auto;
+    width: auto;
+    flex-grow: 1;
     aspect-ratio: 1/1;
 
     margin-bottom: 10px;
@@ -117,7 +126,7 @@ input {
 }
 `;
         
-        this.shadowRoot.append(style, ...elements);
+        this.shadowRoot.append(style, wrapper);
     }
 }
 

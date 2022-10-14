@@ -18,15 +18,25 @@ button, label {
 #controls {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 20px;
+    align-items: center;
+}
+#controls #top-left-panel {
+    display: flex;
+    gap: 20px;
+}
+#controls #buttons {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
 }
 #controls #shape {
     line-height: 1.5rem;
     font-size: 1.5rem;
 }
 #controls #palette {
-    height:100%;
-    width:55px;
+    align-self: stretch;
+    flex-grow: 1;
     padding:10px;
     background-color:rgba(0,0,0,0.1);
 }
@@ -34,7 +44,7 @@ button, label {
     flex-grow: 1;
     min-height: 0px;
     height: 100%;
-    width: 50px;
+    width: 10px;
     appearance: slider-vertical;
 }
 

@@ -21,6 +21,7 @@ import JSZip from 'JSZip';
 //  - Layers:
 //      - Preview
 //  - Undo/Redo
+//  - https://wiki.linuxquestions.org/wiki/Embed_a_zip_file_into_an_image
 
 window.addEventListener('load', () => {
     const scene = new Scene();
@@ -97,7 +98,9 @@ window.addEventListener('load', () => {
             let link = document.createElement("a");
             link.href = blobUrl;
             link.download = "model.zip";
-            link.click();
+            link.rel = "noopener";
+            setTimeout(() => { URL.revokeObjectURL(blobUrl); }, 4E4);
+            setTimeout(() => { link.dispatchEvent(new MouseEvent("click")); }, 0);
         });
     });
     document.getElementById("load").addEventListener("change", async (e)  => {
@@ -115,6 +118,7 @@ window.addEventListener('load', () => {
                 let match = name.match(new RegExp(`${cloth.id}/layer-(\\d+).png`));
                 if (match != null) {
                     layers[parseInt(match[1])] = await image.async("blob");
+                    // FIXME: Is this necessary?
                     layers[parseInt(match[1])] =
                         layers[parseInt(match[1])].slice(0, layers[parseInt(match[1])].size, "image/png");
                 }
