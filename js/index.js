@@ -15,8 +15,8 @@ import JSZip from 'JSZip';
 //      - Shading/normals
 //  - Light preview of CSG on cloth
 //  - Camera:
-//      - Min/max zoom
 //      - Expand viewport
+//  - Flood fill/paint bucket
 //  - Color picker
 //  - Layers:
 //      - Preview
@@ -24,7 +24,7 @@ import JSZip from 'JSZip';
 
 window.addEventListener('load', () => {
     const scene = new Scene();
-    const camera = new PerspectiveCamera(60, 1.0, 0.1, 1000);
+    const camera = new PerspectiveCamera(40, 1.0, 0.1, 1000);
     const canvas = document.getElementById("three-canvas");
     let {width, height} = canvas.getBoundingClientRect();
     // TODO: On resize, resize

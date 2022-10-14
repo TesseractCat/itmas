@@ -138,6 +138,7 @@ button, label {
 #grid #three-canvas {
     cursor: grab;
     border: 1px solid black;
+    image-rendering: pixelated;
 }
 #grid #three-canvas:active {
     cursor: grabbing;
