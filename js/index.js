@@ -12,18 +12,13 @@ import JSZip from 'JSZip';
 // TODO:
 //  - Favicon/meta tags
 //  - Layers:
-//      - Fix new layer weirdness
-//      - Saving
-//      - Deleting
-//      - Renaming/rearranging?
 //      - Preview
 //  - Jump Flood/SDF
 //      - Shading/normals
-//  - Adjustable color palette
+//  - Color picking
 //  - Undo/Redo
 //  - Light preview of CSG on cloth
 //  - Camera:
-//      - Adjust FOV?
 //      - Min/max zoom
 //      - Expand viewport
 

@@ -94,7 +94,14 @@ void main() {
             s = texture2D(sideViews[i], mp.zy);
 
             if (t.a > 0.5 && f.a > 0.5 && s.a > 0.5) {
-                gl_FragColor = vec4((t.xyz + f.xyz + s.xyz)/3.0, 1);
+                //gl_FragColor = vec4((t.xyz + f.xyz + s.xyz)/3.0, 1);
+                gl_FragColor = vec4(f.xyz, 1);
+                if (distance(f.xyz, s.xyz) < 0.01)
+                    gl_FragColor = vec4(f.xyz, 1);
+                if (distance(t.xyz, f.xyz) < 0.01)
+                    gl_FragColor = vec4(t.xyz, 1);
+                if (distance(t.xyz, s.xyz) < 0.01)
+                    gl_FragColor = vec4(t.xyz, 1);
                 break;
             }
         }

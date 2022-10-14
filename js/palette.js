@@ -1,38 +1,74 @@
 class Palette extends HTMLElement {
-    value;
-
     constructor() {
         super();
 
         this.attachShadow({ mode: "open" });
 
         const colors = [
-            "transparent", "black", "white", "red", "orange", "yellow", "green", "blue", "indigo", "violet"
+            "transparent",
+            "#dde4e8",
+            "#ffc97a",
+            "#8dc196",
+            "#5a6e93",
+            "#301c44",
+            "#ce2f7f",
+            "#ef8a6e",
+            "#514cad",
+            "#877aff",
         ];
 
-        let divs = [];
+        let elements = [];
 
-        for (const color of colors) {
-            let colorDiv = document.createElement("div");
+        for (const [i, color] of colors.entries()) {
+            let colorInput = document.createElement("input");
+            colorInput.type = "color";
+            colorInput.id = i;
+            colorInput.value = color;
+
+            let colorDiv = document.createElement("label");
+            colorDiv.setAttribute("for", i);
             colorDiv.style.backgroundColor = color;
             colorDiv.classList.add("color");
-            colorDiv.classList.add(color);
+            if (color == "transparent")
+                colorDiv.classList.add("transparent");
 
             if (color == "black")
                 colorDiv.classList.add("selected");
 
             colorDiv.addEventListener("click", () => {
-                for (const div of divs)
-                    div.classList.remove("selected");
+                for (const e of elements)
+                    e.classList.remove("selected");
                 colorDiv.classList.add("selected");
-                this.value = color;
 
                 this.dispatchEvent(new CustomEvent("change", {
-                    detail: color
+                    detail: colorDiv.style.backgroundColor
                 }));
             });
+
+            colorInput.addEventListener("change", (e) => {
+                colorDiv.style.backgroundColor = e.target.value;
+
+                this.dispatchEvent(new CustomEvent("change", {
+                    detail: e.target.value
+                }));
+            });
+            colorInput.addEventListener("click", (e) => {
+                if (e.button == 0)
+                    e.preventDefault();
+            });
+            if (color != "transparent") {
+                colorDiv.addEventListener("contextmenu", (e) => {
+                    colorInput.dispatchEvent(new MouseEvent("click", {
+                        button: 2
+                    }));
+                    e.preventDefault();
+                    return false;
+                }, false);
+            }
             
-            divs.push(colorDiv);
+            elements.push(colorDiv);
+            if (color != "transparent")
+                elements.push(colorInput);
         }
 
         const style = document.createElement("style");
@@ -43,11 +79,25 @@ class Palette extends HTMLElement {
 * {
     box-sizing: border-box;
 }
+input {
+    display: block;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    padding: 0;
+    border: none;
+    background: none;
+}
+
 .color {
+    display: block;
     border: 3px solid black;
     border-radius: 100%;
+
     width: 100%;
+    height: auto;
     aspect-ratio: 1/1;
+
     margin-bottom: 10px;
     cursor: pointer;
 
@@ -67,7 +117,7 @@ class Palette extends HTMLElement {
 }
 `;
         
-        this.shadowRoot.append(style, ...divs);
+        this.shadowRoot.append(style, ...elements);
     }
 }
 
