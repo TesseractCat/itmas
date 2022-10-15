@@ -13,6 +13,7 @@
             <div id="buttons">
               <button id="clear">Clear</button>
               <button id="save">Save</button>
+              <button id="export">Export</button>
               <input type="file" id="load"></input>
               <label for="load">Load</label>
               <button id="shape">&#11044;</button>
@@ -31,7 +32,10 @@
           <itmas-cloth id="top-view">
             <span slot="title">Top View</span>
           </itmas-cloth>
-          <canvas id="three-canvas"></canvas>
+          <div id="three">
+            <canvas id="three-canvas"></canvas>
+            <span id="expand">&#x26F6;</span>
+          </div>
         </div>
       </div>
       <div id="layers">

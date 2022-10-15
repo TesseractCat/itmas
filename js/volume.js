@@ -1,5 +1,39 @@
 import { ShaderMaterial, CanvasTexture, DoubleSide } from 'three';
 
+export const sampleVolumeSnippet = `
+vec4 sampleVolume(vec3 p) { // p: (0-1, 0-1, 0-1)
+    vec4 t = vec4(0,0,0,0);
+    vec4 f = vec4(0,0,0,0);
+    vec4 s = vec4(0,0,0,0);
+
+    vec4 result = vec4(0,0,0,0);
+
+    #pragma unroll_loop_start
+    for (int i = 0; i < 4; i++) {
+        t = texture2D(topViews[i], vec2(p.x, 1.0 - p.z));
+        f = texture2D(frontViews[i], p.xy);
+        s = texture2D(sideViews[i], p.zy);
+
+        if (t.a > 0.5 && f.a > 0.5 && s.a > 0.5) {
+            //result = vec4((t.xyz + f.xyz + s.xyz)/3.0, 1);
+            result = vec4(f.xyz, 1);
+
+            if (distance(f.xyz, s.xyz) < 0.01)
+                result = vec4(f.xyz, 1);
+            if (distance(t.xyz, f.xyz) < 0.01)
+                result = vec4(t.xyz, 1);
+            if (distance(t.xyz, s.xyz) < 0.01)
+                result = vec4(t.xyz, 1);
+
+            return result;
+        }
+    }
+    #pragma unroll_loop_end
+
+    return result;
+}
+`;
+
 export class VolumeMaterial extends ShaderMaterial {
     topViews;
     frontViews;
@@ -65,6 +99,8 @@ bool intersectBox(const vec3 boxMin, const vec3 boxMax, const Ray r, out Hit hit
     return t1 > max(t0, 0.0);
 }
 
+${sampleVolumeSnippet}
+
 void main() {
     gl_FragColor = vec4(1,1,1,1);
 
@@ -84,35 +120,11 @@ void main() {
         vec3 p = mix(a, b, i/128.0);
         vec3 mp = p + vec3(0.5,0.5,0.5);
 
-        vec4 t = vec4(0,0,0,0);
-        vec4 f = vec4(0,0,0,0);
-        vec4 s = vec4(0,0,0,0);
-        #pragma unroll_loop_start
-        for (int i = 0; i < 4; i++) {
-            t = texture2D(topViews[i], vec2(mp.x, 1.0 - mp.z));
-            f = texture2D(frontViews[i], mp.xy);
-            s = texture2D(sideViews[i], mp.zy);
-
-            if (t.a > 0.5 && f.a > 0.5 && s.a > 0.5) {
-                //gl_FragColor = vec4((t.xyz + f.xyz + s.xyz)/3.0, 1);
-                gl_FragColor = vec4(f.xyz, 1);
-                if (distance(f.xyz, s.xyz) < 0.01)
-                    gl_FragColor = vec4(f.xyz, 1);
-                if (distance(t.xyz, f.xyz) < 0.01)
-                    gl_FragColor = vec4(t.xyz, 1);
-                if (distance(t.xyz, s.xyz) < 0.01)
-                    gl_FragColor = vec4(t.xyz, 1);
-                break;
-            }
+        vec4 result = sampleVolume(mp);
+        if (result.a > 0.0) {
+            gl_FragColor = result;
+            break;
         }
-        #pragma unroll_loop_end
-
-        // vec3 border = abs(mp - vec3(0.5,0.5,0.5));
-        // const float width = 0.48;
-        // if (border.x > width && border.y > width && border.z > width) {
-        //     gl_FragColor = vec4(0,0,0,1);
-        //     break;
-        // }
     }
 }
 `;

@@ -63,7 +63,8 @@ canvas {
 
     image-rendering: pixelated;
     background-color: #FFF;
-    border: 1px solid black;
+    border: none;
+    border-radius: inherit;
 
     background-size: 10% 10%;
     background-image: linear-gradient(to right, #d7d7d7 1px, transparent 1px), linear-gradient(to bottom, #d7d7d7d7 1px, transparent 1px);
