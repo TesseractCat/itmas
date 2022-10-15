@@ -31,13 +31,6 @@ export class MagicaVoxel {
             index = this.palette.length;
             this.palette.push(color);
         }
-        if ((index + 1) == 255 || index == 255) {
-            console.log(index);
-            console.log(this.palette);
-            console.log(point);
-            console.log(color);
-            debugger;
-        }
         this.voxels.push(
             point[0], point[1], point[2], (index + 1)
         );
