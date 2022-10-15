@@ -270,25 +270,24 @@ void main() {
         let pixels = new Uint8ClampedArray(256 * 256 * 4);
 
         for (let layer = 0; layer < 256; layer++) {
-            console.log(layer);
+            document.documentElement.style.setProperty("--progress", `${(layer/256)*100}%`);
 
             test.uniforms.layer.value = layer;
 
             gpuCompute.doRenderTarget(test, renderTarget);
 
             renderer.readRenderTargetPixels(renderTarget, 0, 0, 256, 256, buffer);
-            //console.log(buffer);
 
             for (let i = 0; i < buffer.length; i++) {
                 pixels[i] = Math.floor(buffer[i] * 256);
             }
             let imageData = new ImageData(pixels, 256, 256);
-            //console.log(pixels);
             ctx.putImageData(imageData, 0, 0);
 
             const blob = await new Promise(resolve => exportCanvas.toBlob(resolve));
             zip.file(`${String(layer).padStart(3, '0')}.png`, blob);
         }
+        document.documentElement.style.setProperty("--progress", "0%");
 
         zip.generateAsync({type:"blob"}).then(async (blob) => {
             saveAs(blob, "export.zip");

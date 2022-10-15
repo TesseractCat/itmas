@@ -4,6 +4,7 @@
     --tab-color: #CCC;
     --selected-tab-color: #EEC;
     --roundness: 3px;
+    --progress: 0%;
 }
 body {
     background-color: var(--background-color);
@@ -29,7 +30,7 @@ button, label {
 #controls {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 10px;
     align-items: center;
 }
 #controls #top-left-panel {
@@ -49,7 +50,8 @@ button, label {
     align-self: stretch;
     flex-grow: 1;
     padding:10px;
-    background-color:rgba(0,0,0,0.1);
+    /*background-color:rgba(0,0,0,0.1);*/
+    background: linear-gradient(0deg, rgba(0,0,0,0.4), rgba(0,0,0,0.4) var(--progress), rgba(0,0,0,0.1) var(--progress), rgba(0,0,0,0.1));
     border-radius: var(--roundness);
 }
 #controls #brush {
