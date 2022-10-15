@@ -9,12 +9,15 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
 
 import { VolumeMaterial, sampleVolumeSnippet } from './volume';
+import { MagicaVoxel } from './vox';
 import JSZip from 'JSZip';
 
 // TODO:
 //  - Favicon/meta tags
 //  - Jump Flood/SDF
 //      - Shading/normals
+//  - Export VOX
+//  - Straight line tool
 //  - Cursor preview
 //  - Light preview of CSG on cloth
 //  - Flood fill/paint bucket
@@ -143,92 +146,12 @@ window.addEventListener('load', () => {
             await cloth.deserialize(layers);
         }
     });
-    /*document.getElementById("export").addEventListener("click", async () => {
-        let colors = [];
-        for (let layer = 0; layer < 4; layer++) {
-            let layerColors = [];
-            for (const cloth of cloths) {
-                await cloth.loadLayer(layer);
-                
-                layerColors.push(cloth.ctx.getImageData(0, 0, 256, 256));
-            }
-            colors.push(layerColors);
-        }
-
-        // let layerCanvas = document.createElement("canvas");
-        // layerCanvas.width = 256;
-        // layerCanvas.height = 256;
-        // let ctx = layerCanvas.getContext("2d");
-
-        let ply = `ply
-format ascii 1.0
-element vertex COUNT
-property float x
-property float y
-property float z
-property uchar red
-property uchar green
-property uchar blue
-end_header
-`;
-        let vertexCount = 0;
-
-        //let zip = new JSZip();
-
-        for (let y = 0; y < 256; y++) {
-            console.log(y);
-            //ctx.clearRect(0, 0, 256, 256);
-            for (let z = 0; z < 256; z++) {
-                for (let x = 0; x < 256; x++) {
-                    let line = null;
-
-                    for (let layer = 0; layer < 4; layer++) {
-                        let frontView = colors[layer][0].data;
-                        let sideView = colors[layer][1].data;
-                        let topView = colors[layer][2].data;
-
-                        let t =   topView.slice((z * 256 + x) * 4,
-                                                (z * 256 + x + 1) * 4);
-                        let f = frontView.slice(((255-y) * 256 + x) * 4,
-                                                ((255-y) * 256 + x + 1) * 4);
-                        let s =  sideView.slice(((255-y) * 256 + z) * 4,
-                                                ((255-y) * 256 + z + 1) * 4);
-
-                        if (t[3] > 128 && f[3] > 128 && s[3] > 128) {
-                            let c = f;
-                            if (
-                                (t[0] == f[0] && t[1] == f[1]
-                                 && t[2] == f[2] && t[3] == f[3]) ||
-                                    (t[0] == s[0] && t[1] == s[1]
-                                     && t[2] == s[2] && t[3] == s[3])
-                            ) {
-                                c = t;
-                            }
-                            // ctx.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${c[3]})`;
-                            // ctx.fillRect(x, y, 1, 1);
-                            line = `${x} ${y} ${z} ${c[0]} ${c[1]} ${c[2]}\n`;
-                        }
-                    }
-
-                    if (line != null) {
-                        ply += line;
-                        vertexCount += 1;
-                    }
-                }
-            }
-            //const blob = await new Promise(resolve => layerCanvas.toBlob(resolve));
-            //zip.file(`${z}.png`, blob);
-        }
-
-        // zip.generateAsync({type:"blob"}).then(async (blob) => {
-        //     saveAs(blob, "export.zip");
-        // });
-        ply = ply.replace("COUNT", vertexCount);
-        let blob = new Blob([ply]);
-        saveAs(blob, "export.ply");
-    });*/
     document.getElementById("export").addEventListener("click", async () => {
+        [...document.querySelectorAll("#buttons *")]
+            .forEach((elem) => elem.setAttribute('disabled',''));
+        
         let zip = new JSZip();
+        let vox = new MagicaVoxel();
 
         const gpuCompute = new GPUComputationRenderer(256, 256, renderer);
         const test = gpuCompute.createShaderMaterial(`
@@ -278,20 +201,39 @@ void main() {
 
             renderer.readRenderTargetPixels(renderTarget, 0, 0, 256, 256, buffer);
 
-            for (let i = 0; i < buffer.length; i++) {
-                pixels[i] = Math.floor(buffer[i] * 256);
+            for (let i = 0; i < buffer.length/4; i++) {
+                pixels[(i * 4) + 0] = buffer[(i * 4) + 0] * 255;
+                pixels[(i * 4) + 1] = buffer[(i * 4) + 1] * 255;
+                pixels[(i * 4) + 2] = buffer[(i * 4) + 2] * 255;
+                pixels[(i * 4) + 3] = buffer[(i * 4) + 3] * 255;
+
+                if (pixels[(i * 4) + 3] > 128) {
+                    let x = i % 256;
+                    let y = Math.floor(i/256);
+                    vox.addVoxel([x, y, layer],
+                                 (pixels[(i * 4) + 0] << 24) |
+                                 (pixels[(i * 4) + 1] << 16) |
+                                 (pixels[(i * 4) + 2] << 8)  |
+                                 (pixels[(i * 4) + 3] << 0)
+                                );
+                }
             }
             let imageData = new ImageData(pixels, 256, 256);
             ctx.putImageData(imageData, 0, 0);
 
-            const blob = await new Promise(resolve => exportCanvas.toBlob(resolve));
-            zip.file(`${String(layer).padStart(3, '0')}.png`, blob);
+            // const blob = await new Promise(resolve => exportCanvas.toBlob(resolve));
+            // zip.file(`${String(layer).padStart(3, '0')}.png`, blob);
         }
         document.documentElement.style.setProperty("--progress", "0%");
 
-        zip.generateAsync({type:"blob"}).then(async (blob) => {
-            saveAs(blob, "export.zip");
-        });
+        let blob = vox.toBlob();
+        saveAs(blob, "export.vox");
+
+        // zip.generateAsync({type:"blob"}).then(async (blob) => {
+        //     saveAs(blob, "export.zip");
+        // });
+        [...document.querySelectorAll("#buttons *")]
+            .forEach((elem) => elem.removeAttribute('disabled'));
     });
 
     [...document.getElementsByTagName("itmas-layer")].forEach((layerTab) => {

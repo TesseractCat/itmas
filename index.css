@@ -26,6 +26,9 @@ button, label {
     padding: 1px 6px;
     font-size: 0.8em;
 }
+label[disabled] {
+    color: rgba(16,16,16,0.3);
+}
 
 #controls {
     display: flex;
@@ -50,7 +53,6 @@ button, label {
     align-self: stretch;
     flex-grow: 1;
     padding:10px;
-    /*background-color:rgba(0,0,0,0.1);*/
     background: linear-gradient(0deg, rgba(0,0,0,0.4), rgba(0,0,0,0.4) var(--progress), rgba(0,0,0,0.1) var(--progress), rgba(0,0,0,0.1));
     border-radius: var(--roundness);
 }
