@@ -14,18 +14,18 @@ import JSZip from 'JSZip';
 
 // TODO:
 //  - Favicon/meta tags
-//  - Jump Flood/SDF
+//  - Jump Flood/SDF:
 //      - Shading/normals
-//  - Export VOX
-//  - Straight line tool
-//  - Cursor preview
-//  - Light preview of CSG on cloth
-//  - Flood fill/paint bucket
-//  - Color picker
+//  - Canvas:
+//      - Straight line tool
+//      - Cursor preview
+//      - Light preview of CSG on cloth
+//      - Flood fill/paint bucket
+//      - Color picker
+//      - Undo/Redo
 //  - Layers:
 //      - Preview
-//  - Undo/Redo
-//  - https://wiki.linuxquestions.org/wiki/Embed_a_zip_file_into_an_image
+//      - Hide/show
 
 function saveAs(blob, name) {
     const blobUrl = URL.createObjectURL(blob);
@@ -38,6 +38,7 @@ function saveAs(blob, name) {
     setTimeout(() => { link.dispatchEvent(new MouseEvent("click")); }, 0);
 }
 
+window.onbeforeunload = function () { return true; }
 window.addEventListener('load', () => {
     const scene = new Scene();
     const camera = new PerspectiveCamera(40, 1.0, 0.1, 1000);
