@@ -17,12 +17,12 @@ import JSZip from 'JSZip';
 //  - Jump Flood/SDF:
 //      - Shading/normals
 //  - Canvas:
-//      - Straight line tool
+//      - Flood fill/paint bucket
 //      - Cursor preview
 //      - Light preview of CSG on cloth
-//      - Flood fill/paint bucket
-//      - Color picker
 //      - Undo/Redo
+//      - Straight line tool
+//      - Color picker
 //  - Layers:
 //      - Preview
 //      - Hide/show
@@ -123,11 +123,7 @@ window.addEventListener('load', () => {
             saveAs(blob, "model.zip");
         });
     });
-    document.getElementById("load").addEventListener("change", async (e)  => {
-        const files = e.target.files;
-        if (files.length == 0)
-            return;
-        const file = files[0];
+    async function loadZip(file) {
         let zip = new JSZip();
         await zip.loadAsync(file);
 
@@ -146,6 +142,18 @@ window.addEventListener('load', () => {
 
             await cloth.deserialize(layers);
         }
+    }
+    document.getElementById("load").addEventListener("change", async (e)  => {
+        const files = e.target.files;
+        if (files.length == 0)
+            return;
+        const file = files[0];
+
+        await loadZip(file);
+    });
+    document.getElementById("examples").addEventListener("change", async (e) => {
+        let file = await (await fetch(`./models/${e.target.value}.zip`)).blob();
+        await loadZip(file);
     });
     document.getElementById("export").addEventListener("click", async () => {
         [...document.querySelectorAll("#buttons *")]

@@ -1,6 +1,17 @@
 import { aliasedLine } from './aliased';
 import { Texture, DataTexture } from 'three';
 
+const BrushType = {
+    Circle: 'Circle',
+    Square: 'Square',
+    Fill: 'Fill',
+};
+
+function floodFill(ctx, x, y, color) {
+    let imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+    // TODO: Implement
+}
+
 class Cloth extends HTMLElement {
     canvas;
     ctx;
