@@ -111,6 +111,10 @@ class Cloth extends HTMLElement {
     top: 0px;
     left: 0px;
 
+    image-rendering: pixelated;
+    border: none;
+    border-radius: inherit;
+
     width: 100%;
     height: 100%;
 }
