@@ -25,8 +25,6 @@ import JSZip from 'JSZip';
 //  - Layers:
 //      - Preview
 //      - Hide/show
-//  - Export:
-//      - Export palette
 
 function saveAs(blob, name) {
     const blobUrl = URL.createObjectURL(blob);
