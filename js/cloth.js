@@ -49,6 +49,7 @@ class Cloth extends HTMLElement {
         canvas.oncontextmenu = () => {return false;};
         canvas.addEventListener("pointerdown", (e) => this.handleMouseDown(e));
         canvas.addEventListener("pointermove", (e) => this.handleMouseMove(e));
+        canvas.addEventListener("pointerover", (e) => this.handleMouseOver(e));
         canvas.addEventListener("pointerout",  (e) => this.handleMouseOut(e));
         document.addEventListener("pointerup", (e) => this.handleMouseUp(e));
         this.ctx = canvas.getContext("2d", {willReadFrequently: true});
@@ -146,6 +147,10 @@ class Cloth extends HTMLElement {
                 (this.previousY/height) * this.ctx.canvas.height,
             ]
         };
+    }
+    handleMouseOver(e) {
+        this.previousX = e.offsetX;
+        this.previousY = e.offsetY;
     }
     handleMouseDown(e) {
         this.previousX = e.offsetX;
