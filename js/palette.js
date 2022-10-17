@@ -1,4 +1,6 @@
 class Palette extends HTMLElement {
+    divs = [];
+
     constructor() {
         super();
 
@@ -63,8 +65,10 @@ class Palette extends HTMLElement {
                 }, false);
             }
             
-            if (color != "transparent")
+            if (color != "transparent") {
                 colorDiv.append(colorInput);
+                this.divs.push(colorDiv);
+            }
             wrapper.append(colorDiv);
         }
 
@@ -118,6 +122,22 @@ input {
 `;
         
         this.shadowRoot.append(style, wrapper);
+    }
+
+    setColors(colors) { // Colors is ["rgb(x,y,z)", ...]
+        function rgbToHex(rgb) {
+            return "#" + rgb.split("(")[1].split(")")[0].split(",").map(x => parseInt(x).toString(16).padStart(2, "0")).join("");
+        }
+        for (let [i, color] of colors.entries()) {
+            if (i >= this.divs.length)
+                return;
+
+            this.divs[i].style.backgroundColor = color;
+            this.divs[i].firstElementChild.value = rgbToHex(color);
+        }
+    }
+    getColors() {
+        return this.divs.map(d => d.style.backgroundColor);
     }
 }
 

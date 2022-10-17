@@ -114,6 +114,19 @@ window.addEventListener('load', () => {
     document.getElementById("save").addEventListener("click", async () => {
         let zip = new JSZip();
 
+        let metadata = {};
+        metadata["version"] = 1;
+        metadata["palette"] = palette.getColors();
+        zip.file("metadata.json",
+                 new Blob([JSON.stringify(metadata)],
+                          {type: "application/json"})
+                );
+
+        renderer.render(scene, camera); // Need to do this before taking a 'screenshot'
+        const previewBlob = await new Promise(resolve => document.getElementById("three-canvas").toBlob(resolve));
+        console.log(previewBlob);
+        zip.file("thumbnail.png", previewBlob);
+
         for (const cloth of cloths) {
             let folder = zip.folder(cloth.id);
 
@@ -124,8 +137,6 @@ window.addEventListener('load', () => {
         }
 
         zip.generateAsync({type:"blob"}).then(async (blob) => {
-            // const previewBlob = await new Promise(resolve => document.getElementById("three-canvas").toBlob(resolve));
-            // const combinedBlob = new Blob([previewBlob, blob], {type: "image/png"});
             saveAs(blob, "model.zip");
         });
     });
@@ -147,6 +158,15 @@ window.addEventListener('load', () => {
             }
 
             await cloth.deserialize(layers);
+        }
+
+        let metadataFile = zip.file("metadata.json");
+        if (metadataFile != null) {
+            let metadata = JSON.parse(await metadataFile.async("string"));
+
+            if ("palette" in metadata) {
+                palette.setColors(metadata["palette"]);
+            }
         }
     }
     document.getElementById("load").addEventListener("change", async (e)  => {
