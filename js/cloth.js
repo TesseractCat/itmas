@@ -131,8 +131,10 @@ class Cloth extends HTMLElement {
             this.invalidate(this.layer);
     }
 
+    previousX = 0;
+    previousY = 0;
     eventToCanvasCoords(e, x, y) {
-        let {offsetX, offsetY, movementX, movementY} = e;
+        let {offsetX, offsetY} = e;
         let {width, height} = this.ctx.canvas.getBoundingClientRect();
         return {
             current: [
@@ -140,12 +142,15 @@ class Cloth extends HTMLElement {
                 (offsetY/height) * this.ctx.canvas.height,
             ],
             previous: [
-                ((offsetX - movementX)/width) * this.ctx.canvas.width,
-                ((offsetY - movementY)/height) * this.ctx.canvas.height,
+                (this.previousX/width) * this.ctx.canvas.width,
+                (this.previousY/height) * this.ctx.canvas.height,
             ]
         };
     }
     handleMouseDown(e) {
+        this.previousX = e.offsetX;
+        this.previousY = e.offsetY;
+
         if (this.layer == -1)
             return;
 
@@ -188,6 +193,9 @@ class Cloth extends HTMLElement {
 
             this.invalidate(this.layer);
         }
+
+        this.previousX = e.offsetX;
+        this.previousY = e.offsetY;
     }
     handleMouseUp(e) {
         this.mouseDown = false;
