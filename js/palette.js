@@ -36,14 +36,16 @@ class Palette extends HTMLElement {
             if (color == "black")
                 colorDiv.classList.add("selected");
 
-            colorDiv.addEventListener("click", () => {
-                for (const e of [...wrapper.getElementsByClassName("selected")])
-                    e.classList.remove("selected");
+            colorDiv.addEventListener("click", (e) => {
+                for (const elem of [...wrapper.getElementsByClassName("selected")])
+                    elem.classList.remove("selected");
                 colorDiv.classList.add("selected");
 
                 this.dispatchEvent(new CustomEvent("change", {
                     detail: colorDiv.style.backgroundColor
                 }));
+
+                e.preventDefault();
             });
 
             colorInput.addEventListener("change", (e) => {
@@ -53,23 +55,17 @@ class Palette extends HTMLElement {
                     detail: e.target.value
                 }));
             });
-            colorInput.addEventListener("click", (e) => {
-                if (e.button == 0)
-                    e.preventDefault();
-            });
             if (color != "transparent") {
                 colorDiv.addEventListener("contextmenu", (e) => {
-                    colorInput.dispatchEvent(new MouseEvent("click", {
-                        button: 2
-                    }));
+                    colorInput.dispatchEvent(new MouseEvent("click"));
                     e.preventDefault();
                     return false;
                 }, false);
             }
             
-            wrapper.append(colorDiv);
             if (color != "transparent")
-                wrapper.append(colorInput);
+                colorDiv.append(colorInput);
+            wrapper.append(colorDiv);
         }
 
         const style = document.createElement("style");
@@ -96,28 +92,23 @@ input {
     align-items: center;
     flex-basis: content;
     height: 100%;
+    gap: 15px;
 }
 
 .color {
     display: block;
-    border: 3px solid black;
-    border-radius: 100%;
+    outline: 3px solid black;
+    border-radius: var(--roundness);
 
-    width: auto;
+    width: 100%;
     flex-grow: 1;
-    aspect-ratio: 1/1;
 
-    margin-bottom: 10px;
     cursor: pointer;
 
-    transition: border 0.2s;
-}
-.black {
-    border: 3px solid white;
-    outline: 1px solid black;
+    transition: outline 0.2s;
 }
 .color:hover, .selected {
-    border-width: 6px;
+    outline-width: 6px;
 }
 .transparent {
     background-color: #FFF !important;

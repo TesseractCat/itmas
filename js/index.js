@@ -18,7 +18,6 @@ import JSZip from 'JSZip';
 //      - Shading/normals
 //  - Canvas:
 //      - Flood fill/paint bucket
-//      - Fix mouse over offsetX inset
 //      - Light preview of CSG on cloth
 //      - Undo/Redo
 //      - Straight line tool
@@ -26,6 +25,8 @@ import JSZip from 'JSZip';
 //  - Layers:
 //      - Preview
 //      - Hide/show
+//  - Export:
+//      - Export palette
 
 function saveAs(blob, name) {
     const blobUrl = URL.createObjectURL(blob);
