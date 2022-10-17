@@ -26,6 +26,9 @@ button, label {
     padding: 1px 6px;
     font-size: 0.8em;
 }
+button:hover, label:hover {
+    background-color: #E0E0E0;
+}
 label[disabled] {
     color: rgba(16,16,16,0.3);
 }

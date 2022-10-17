@@ -18,7 +18,7 @@ import JSZip from 'JSZip';
 //      - Shading/normals
 //  - Canvas:
 //      - Flood fill/paint bucket
-//      - Cursor preview
+//      - Fix mouse over offsetX inset
 //      - Light preview of CSG on cloth
 //      - Undo/Redo
 //      - Straight line tool

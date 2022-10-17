@@ -48,9 +48,7 @@ class Cloth extends HTMLElement {
         canvas.height = canvas.width;
         canvas.oncontextmenu = () => {return false;};
         canvas.addEventListener("pointerdown", (e) => this.handleMouseDown(e));
-        canvas.addEventListener("pointermove", (e) => this.handleMouseMove(e));
-        canvas.addEventListener("pointerover", (e) => this.handleMouseOver(e));
-        canvas.addEventListener("pointerout",  (e) => this.handleMouseOut(e));
+        document.addEventListener("pointermove", (e) => this.handleMouseMove(e));
         document.addEventListener("pointerup", (e) => this.handleMouseUp(e));
         this.ctx = canvas.getContext("2d", {willReadFrequently: true});
 
@@ -135,27 +133,21 @@ class Cloth extends HTMLElement {
     previousX = 0;
     previousY = 0;
     eventToCanvasCoords(e, x, y) {
-        let {offsetX, offsetY} = e;
-        let {width, height} = this.ctx.canvas.getBoundingClientRect();
+        let {clientX, clientY} = e;
+        let {top, left, width, height} = this.ctx.canvas.getBoundingClientRect();
+
         return {
             current: [
-                (offsetX/width) * this.ctx.canvas.width,
-                (offsetY/height) * this.ctx.canvas.height,
+                ((clientX - left)/width) * this.ctx.canvas.width,
+                ((clientY - top)/height) * this.ctx.canvas.height,
             ],
             previous: [
-                (this.previousX/width) * this.ctx.canvas.width,
-                (this.previousY/height) * this.ctx.canvas.height,
+                ((this.previousX - left)/width) * this.ctx.canvas.width,
+                ((this.previousY - top)/height) * this.ctx.canvas.height,
             ]
         };
     }
-    handleMouseOver(e) {
-        this.previousX = e.offsetX;
-        this.previousY = e.offsetY;
-    }
     handleMouseDown(e) {
-        this.previousX = e.offsetX;
-        this.previousY = e.offsetY;
-
         if (this.layer == -1)
             return;
 
@@ -199,16 +191,11 @@ class Cloth extends HTMLElement {
             this.invalidate(this.layer);
         }
 
-        this.previousX = e.offsetX;
-        this.previousY = e.offsetY;
+        this.previousX = e.clientX;
+        this.previousY = e.clientY;
     }
     handleMouseUp(e) {
         this.mouseDown = false;
-    }
-    handleMouseOut(e) {
-        this.overlayCtx.clearRect(0, 0,
-                                  this.overlayCtx.canvas.width, this.overlayCtx.canvas.height);
-        this.overlayCtx.beginPath(); // Need to do this after clearing?
     }
 
     invalidate(layer) {
