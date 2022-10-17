@@ -1,4 +1,4 @@
-import './cloth';
+import { BrushType } from './cloth';
 import './palette';
 import './layer';
 
@@ -81,7 +81,7 @@ window.addEventListener('load', () => {
     });
     document.getElementById("brush").addEventListener("change", (e) => {
         for (let cloth of cloths)
-            cloth.brushSize = parseInt(e.target.value);
+            cloth.brushSize = parseInt(e.target.value)/parseInt(e.target.getAttribute("max"));
     });
     document.getElementById("shape").addEventListener("click", (e) => {
         if (e.target.textContent == "⬤") {
@@ -89,8 +89,13 @@ window.addEventListener('load', () => {
         } else {
             e.target.textContent = "⬤";
         }
-        for (let cloth of cloths)
-            cloth.brushSquare = !cloth.brushSquare;
+        for (let cloth of cloths) {
+            if (cloth.brushStyle == BrushType.Circle) {
+                cloth.brushStyle = BrushType.Square;
+            } else {
+                cloth.brushStyle = BrushType.Circle;
+            }
+        }
     });
     document.getElementById("clear").addEventListener("click", () => {
         if (confirm("Are you sure you want to clear this layer?")) {

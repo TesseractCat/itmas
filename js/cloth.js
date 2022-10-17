@@ -1,7 +1,7 @@
-import { aliasedLine } from './aliased';
+import { aliasedLine, aliasedCircle } from './aliased';
 import { Texture, DataTexture } from 'three';
 
-const BrushType = {
+export const BrushType = {
     Circle: 'Circle',
     Square: 'Square',
     Fill: 'Fill',
@@ -12,13 +12,17 @@ function floodFill(ctx, x, y, color) {
     // TODO: Implement
 }
 
+const brushScale = 10;
+
 class Cloth extends HTMLElement {
-    canvas;
     ctx;
+    overlayCtx;
+
+    size;
 
     color = "black";
-    brushSize = 5;
-    brushSquare = false;
+    brushSize = 0.5;
+    brushStyle = BrushType.Circle;
 
     textures = Array(4).fill(null).map(() => {
         let t = new DataTexture(
@@ -37,14 +41,24 @@ class Cloth extends HTMLElement {
 
         this.attachShadow({ mode: "open" });
 
+        this.size = 256;
         const canvas = document.createElement("canvas");
-        canvas.width = 256;
+        canvas.id = "canvas";
+        canvas.width = this.size;
         canvas.height = canvas.width;
-        canvas.addEventListener("mousedown", (e) => this.handleMouseDown(e));
-        canvas.addEventListener("mousemove", (e) => this.handleMouseMove(e));
-        document.addEventListener("mouseup", (e) => this.handleMouseUp(e));
-        this.canvas = canvas;
+        canvas.oncontextmenu = () => {return false;};
+        canvas.addEventListener("pointerdown", (e) => this.handleMouseDown(e));
+        canvas.addEventListener("pointermove", (e) => this.handleMouseMove(e));
+        canvas.addEventListener("pointerout",  (e) => this.handleMouseOut(e));
+        document.addEventListener("pointerup", (e) => this.handleMouseUp(e));
         this.ctx = canvas.getContext("2d", {willReadFrequently: true});
+
+        const overlayCanvas = document.createElement("canvas");
+        overlayCanvas.id = "overlay";
+        overlayCanvas.width = canvas.width;
+        overlayCanvas.height = canvas.height;
+        this.overlayCtx = overlayCanvas.getContext("2d");
+        this.overlayCtx.fillStyle = "black";
 
         const title = document.createElement("div");
         title.id = "title";
@@ -68,7 +82,7 @@ class Cloth extends HTMLElement {
     box-sizing: border-box;
 }
 
-canvas {
+#canvas {
     width: 100%;
     height: 100%;
 
@@ -90,30 +104,40 @@ canvas {
 
     pointer-events: none;
 }
+#overlay {
+    pointer-events: none;
+
+    position: absolute;
+    top: 0px;
+    left: 0px;
+
+    width: 100%;
+    height: 100%;
+}
 `;
 
         this.initLayer(0);
 
-        this.shadowRoot.append(style, canvas, title);
+        this.shadowRoot.append(style, canvas, overlayCanvas, title);
     }
 
     clear(manual = true) {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
         if (manual)
             this.invalidate(this.layer);
     }
 
     eventToCanvasCoords(e, x, y) {
         let {offsetX, offsetY, movementX, movementY} = e;
-        let {width, height} = this.canvas.getBoundingClientRect();
+        let {width, height} = this.ctx.canvas.getBoundingClientRect();
         return {
             current: [
-                (offsetX/width) * this.canvas.width,
-                (offsetY/height) * this.canvas.height,
+                (offsetX/width) * this.ctx.canvas.width,
+                (offsetY/height) * this.ctx.canvas.height,
             ],
             previous: [
-                ((offsetX - movementX)/width) * this.canvas.width,
-                ((offsetY - movementY)/height) * this.canvas.height,
+                ((offsetX - movementX)/width) * this.ctx.canvas.width,
+                ((offsetY - movementY)/height) * this.ctx.canvas.height,
             ]
         };
     }
@@ -130,18 +154,32 @@ canvas {
         let {current} = this.eventToCanvasCoords(e);
         if (this.color == "transparent")
             this.ctx.globalCompositeOperation = "destination-out";
-        aliasedLine(this.ctx, current, current, this.brushSize, this.brushSquare);
+        let brushSize = e.pointerType == "pen" ? Math.max(e.pressure, 0.2) : this.brushSize;
+        aliasedLine(this.ctx, current, current, brushSize * brushScale, this.brushStyle == BrushType.Square);
         this.ctx.globalCompositeOperation = "source-over";
 
         this.invalidate(this.layer);
     }
     handleMouseMove(e) {
-        if (this.mouseDown) {
-            let {current, previous} = this.eventToCanvasCoords(e);
+        let {current, previous} = this.eventToCanvasCoords(e);
+        let brushSize = e.pointerType == "pen" ? Math.max(e.pressure, 0.2) : this.brushSize;
 
+        this.overlayCtx.clearRect(0, 0,
+                                  this.overlayCtx.canvas.width, this.overlayCtx.canvas.height);
+        this.overlayCtx.beginPath(); // Need to do this after clearing?
+        this.overlayCtx.fillStyle = this.color == "transparent" ? "rgba(0,0,0,0.5)" : this.color;
+        if (this.brushStyle == BrushType.Square) {
+            let radius = brushSize * brushScale;
+            this.overlayCtx.fillRect(Math.floor(current[0]) - radius, Math.floor(current[1]) - radius, radius*2, radius*2);
+        } else {
+            aliasedCircle(this.overlayCtx, current[0], current[1], brushSize * brushScale);
+        }
+        this.overlayCtx.fill();
+        
+        if (this.mouseDown) {
             if (this.color == "transparent")
                 this.ctx.globalCompositeOperation = "destination-out";
-            aliasedLine(this.ctx, previous, current, this.brushSize, this.brushSquare);
+            aliasedLine(this.ctx, previous, current, brushSize * brushScale, this.brushStyle == BrushType.Square);
             this.ctx.globalCompositeOperation = "source-over";
 
             this.invalidate(this.layer);
@@ -150,9 +188,14 @@ canvas {
     handleMouseUp(e) {
         this.mouseDown = false;
     }
+    handleMouseOut(e) {
+        this.overlayCtx.clearRect(0, 0,
+                                  this.overlayCtx.canvas.width, this.overlayCtx.canvas.height);
+        this.overlayCtx.beginPath(); // Need to do this after clearing?
+    }
 
     invalidate(layer) {
-        this.textures[layer].image.data = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        this.textures[layer].image.data = this.ctx.getImageData(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
         this.textures[layer].needsUpdate = true;
     }
     initLayer(layer) {
@@ -160,13 +203,13 @@ canvas {
             this.textures[layer].dispose();
 
         this.textures[layer] =
-            new DataTexture(this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height),
-                            this.canvas.width, this.canvas.height);
+            new DataTexture(this.ctx.getImageData(0, 0, this.ctx.canvas.width, this.ctx.canvas.height),
+                            this.ctx.canvas.width, this.ctx.canvas.height);
         this.textures[layer].flipY = true;
         this.textures[layer].needsUpdate = true;
     }
     async saveToLayer(layer) {
-        const blob = await new Promise(resolve => this.canvas.toBlob(resolve));
+        const blob = await new Promise(resolve => this.ctx.canvas.toBlob(resolve));
         this.layers[layer] = blob;
     }
     async loadLayer(layer) {
@@ -200,12 +243,12 @@ canvas {
 
         for (let [i, l] of this.layers.entries()) {
             if (l == null) {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
                 this.initLayer(i);
                 continue;
             }
 
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
             let img = new Image();
             let blobUrl = URL.createObjectURL(l);
             img.setAttribute("src", blobUrl);

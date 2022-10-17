@@ -155,6 +155,8 @@ label[disabled] {
     height: calc(90vh - 40px); /* This fixes a Firefox display bug */
 }
 #grid itmas-cloth, #grid #three-canvas {
+    touch-action: none;
+
     width: 100%;
     height: 100%;
     border: 1px solid black;
