@@ -35,6 +35,9 @@ function floodFill(ctx, x, y, color) {
         fillColor[3] = 0;
     let startColor = getColor([x, y]);
 
+    if (compareColors(fillColor, startColor))
+        return;
+
     let stack = [[x, y]];
     while (stack.length > 0) {
         let next = stack.pop();

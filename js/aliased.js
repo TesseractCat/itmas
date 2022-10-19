@@ -45,47 +45,69 @@ export function fastLine(ctx, x1, y1, x2, y2) {
             ctx.rect(x1 + i, (y1 + i * mul)|0, 1, 1)
     }
 }
-export function aliasedLine(ctx, p1, p2, radius, square = false) {
-    let [x1, y1] = p1;
-    let [x2, y2] = p2;
 
-    // Calculate angle
-    var diffX = x2 - x1,
-        diffY = y2 - y1,
-        angle = Math.atan2(diffY, diffX),
-        // Two edge lines offset per angle
-        lx1 = x1 - radius * Math.sin(angle),
-        ly1 = y1 + radius * Math.cos(angle),
-        lx2 = x2 - radius * Math.sin(angle),
-        ly2 = y2 + radius * Math.cos(angle),
-        rx1 = x1 + radius * Math.sin(angle),
-        ry1 = y1 - radius * Math.cos(angle),
-        rx2 = x2 + radius * Math.sin(angle),
-        ry2 = y2 - radius * Math.cos(angle);
+export function bresenhamLine(ctx, p1, p2, radius = 1) {
+    p1 = [Math.floor(p1[0]), Math.floor(p1[1])];
+    p2 = [Math.floor(p2[0]), Math.floor(p2[1])];
+    let min = [Math.min(p1[0], p2[0]) - radius, Math.min(p1[1], p2[1]) - radius];
+    let max = [Math.max(p1[0], p2[0]) + radius, Math.max(p1[1], p2[1]) + radius];
+    let width = max[0] - min[0] + 1;
+    let height = max[1] - min[1] + 1;
 
-    // Main line
-    ctx.beginPath();
-    // FIXME: Still causes some aliasing
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.lineWidth = radius<<1;
-    ctx.stroke();
+    if (width == 0 || height == 0)
+        return;
+
+    let imageData = ctx.getImageData(min[0], min[1], width, height);
+    let color = [
+        parseInt(ctx.fillStyle.substring(1,3), 16),
+        parseInt(ctx.fillStyle.substring(3,5), 16),
+        parseInt(ctx.fillStyle.substring(5,7), 16),
+        255
+    ];
+
+    function setColor(p, c) {
+        imageData.data[((p[1] * width + p[0]) * 4) + 0] = c[0];
+        imageData.data[((p[1] * width + p[0]) * 4) + 1] = c[1];
+        imageData.data[((p[1] * width + p[0]) * 4) + 2] = c[2];
+        imageData.data[((p[1] * width + p[0]) * 4) + 3] = c[3];
+    }
+
+    // http://members.chello.at/~easyfilter/bresenham.html
+    let [x0, y0] = [p1[0] - min[0], p1[1] - min[1]];
+    let [x1, y1] = [p2[0] - min[0], p2[1] - min[1]];
+
+    let dx =  Math.abs(x1-x0), sx = x0<x1 ? 1 : -1;
+    let dy = -Math.abs(y1-y0), sy = y0<y1 ? 1 : -1; 
+    let err = dx+dy;
     
-    // Aliased edges
-    ctx.beginPath();
-    fastLine(ctx, lx1|0, ly1|0, lx2|0, ly2|0);
-    fastLine(ctx, rx1|0, ry1|0, rx2|0, ry2|0);
-    ctx.fill();
+    while (true) {
+        // FIXME: Probably inefficient way to do thickness
+        for (let i = -radius; i <= radius; i++) {
+            setColor([x0+i,y0], color);
+            setColor([x0,y0+i], color);
+        }
+        if (x0==x1 && y0==y1) break;
+        let e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+
+    ctx.putImageData(imageData, min[0], min[1]);
+}
+export function aliasedLine(ctx, p1, p2, radius, square = false) {
+    bresenhamLine(ctx, p1, p2, radius);
 
     // Caps
+    let [x1, y1] = p1;
+    let [x2, y2] = p2;
+    ctx.beginPath();
     if (!square) {
         aliasedCircle(ctx, x1, y1, radius);
         aliasedCircle(ctx, x2, y2, radius);
-        ctx.fill();
     } else {
-        ctx.fillRect(Math.floor(x1) - radius, Math.floor(y1) - radius, radius*2, radius*2)
-        ctx.fillRect(Math.floor(x2) - radius, Math.floor(y2) - radius, radius*2, radius*2)
+        let rectRadius = radius;
+        ctx.rect(Math.floor(x1) - rectRadius, Math.floor(y1) - rectRadius, rectRadius*2, rectRadius*2)
+        ctx.rect(Math.floor(x2) - rectRadius, Math.floor(y2) - rectRadius, rectRadius*2, rectRadius*2)
     }
-    // ctx.drawImage(brush, x1 - radius, y1 - radius)
-    // ctx.drawImage(brush, x2 - radius, y2 - radius)
+    ctx.fill();
 }
