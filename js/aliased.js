@@ -62,7 +62,7 @@ export function bresenhamLine(ctx, p1, p2, radius = 1) {
         parseInt(ctx.fillStyle.substring(1,3), 16),
         parseInt(ctx.fillStyle.substring(3,5), 16),
         parseInt(ctx.fillStyle.substring(5,7), 16),
-        255
+        ctx.globalCompositeOperation == "source-over" ? 255 : 0
     ];
 
     function setColor(p, c) {
