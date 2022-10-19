@@ -7,13 +7,16 @@ export const BrushType = {
     Fill: 'Fill',
 };
 
-function floodFill(ctx, x, y, color) {
+function floodFill(ctx, x, y, erase) {
     let imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    function rgbToUint8Array(rgb) {
-        let components = rgb.split("(")[1].split(")")[0].split(",").map(x => parseInt(x));
-        components.push(255);
-        return new Uint8Array(components);
+    function hexToUint8Array(rgb) {
+        return new Uint8Array([
+            parseInt(rgb.substring(1,3), 16),
+            parseInt(rgb.substring(3,5), 16),
+            parseInt(rgb.substring(5,7), 16),
+            255
+        ]);
     }
     function getColor(p) {
         return imageData.data.slice(
@@ -30,8 +33,8 @@ function floodFill(ctx, x, y, color) {
         return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3];
     }
 
-    let fillColor = rgbToUint8Array(color == "transparent" ? "rgb(0,0,0)" : color);
-    if (color == "transparent")
+    let fillColor = hexToUint8Array(erase ? "#000000" : ctx.fillStyle);
+    if (erase)
         fillColor[3] = 0;
     let startColor = getColor([x, y]);
 
@@ -216,7 +219,7 @@ class Cloth extends HTMLElement {
             this.ctx.globalCompositeOperation = "destination-out";
 
         if (e.ctrlKey) {
-            floodFill(this.ctx, Math.floor(current[0]), Math.floor(current[1]), this.color);
+            floodFill(this.ctx, Math.floor(current[0]), Math.floor(current[1]), this.color == "transparent");
             this.mouseDown = false;
         } else {
             let brushSize = e.pointerType == "pen" ? Math.max(e.pressure, 0.2) : this.brushSize;
