@@ -10,6 +10,7 @@ import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer
 
 import { VolumeMaterial, sampleVolumeSnippet } from './volume';
 import { MagicaVoxel } from './vox';
+import { jumpFlood } from './jumpflood';
 import JSZip from 'JSZip';
 
 // TODO:
@@ -17,7 +18,7 @@ import JSZip from 'JSZip';
 //  - Jump Flood/SDF:
 //      - Shading/normals
 //  - Canvas:
-//      - Flood fill/paint bucket
+//      - Fix anti-aliased artifacts
 //      - Light preview of CSG on cloth
 //      - Undo/Redo
 //      - Straight line tool
@@ -25,6 +26,7 @@ import JSZip from 'JSZip';
 //  - Layers:
 //      - Preview
 //      - Hide/show
+//      - Move in space
 
 function saveAs(blob, name) {
     const blobUrl = URL.createObjectURL(blob);
@@ -287,8 +289,33 @@ void main() {
         });
     });
 
+    // document.addEventListener("keydown", async (e) => {
+    //     if (e.key == " ") {
+    //         let result = jumpFlood(renderer, views[1][0]);
+
+    //         let buffer = new Float32Array(256 * 256 * 4);
+    //         let pixels = new Uint8ClampedArray(256 * 256 * 4);
+
+    //         const exportCanvas = document.createElement("canvas");
+    //         exportCanvas.width = 256;
+    //         exportCanvas.height = 256;
+    //         const ctx = exportCanvas.getContext("2d");
+
+    //         renderer.readRenderTargetPixels(result, 0, 0, 256, 256, buffer);
+
+    //         for (let i = 0; i < buffer.length; i++)
+    //             pixels[i] = buffer[i] * 255;
+
+    //         let imageData = new ImageData(pixels, 256, 256);
+    //         ctx.putImageData(imageData, 0, 0);
+
+    //         const blob = await new Promise(resolve => exportCanvas.toBlob(resolve));
+    //         console.log(URL.createObjectURL(blob));
+    //     }
+    // });
+
     const geometry = new BoxGeometry(1, 1, 1);
-    const material = new VolumeMaterial({
+    const material = new VolumeMaterial(renderer, {
         topViews: views[0],
         frontViews: views[1],
         sideViews: views[2],

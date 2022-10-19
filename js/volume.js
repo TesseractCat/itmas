@@ -1,4 +1,5 @@
 import { ShaderMaterial, CanvasTexture, DoubleSide } from 'three';
+import { jumpFlood } from './jumpflood';
 
 export const sampleVolumeSnippet = `
 vec4 sampleVolume(vec3 p) { // p: (0-1, 0-1, 0-1)
@@ -34,21 +35,77 @@ vec4 sampleVolume(vec3 p) { // p: (0-1, 0-1, 0-1)
 }
 `;
 
+export const sampleNormalSnippet = `
+float sampleDistance(vec3 p) { // p: (0-1, 0-1, 0-1)
+    float t = 0.0;
+    float f = 0.0;
+    float s = 0.0;
+
+    float result = 999.0;
+
+    #pragma unroll_loop_start
+    for (int i = 0; i < 4; i++) {
+        t = texture2D(topViews[i], vec2(p.x, 1.0 - p.z)).a;
+        f = texture2D(frontViews[i], p.xy).a;
+        s = texture2D(sideViews[i], p.zy).a;
+
+        result = min(result, min(t, min(f, s)));
+    }
+    #pragma unroll_loop_end
+
+    return result;
+}
+float sampleDistanceBinary(vec3 p) {
+    float t = 0.0;
+    float f = 0.0;
+    float s = 0.0;
+
+    float result = 0.0;
+
+    #pragma unroll_loop_start
+    for (int i = 0; i < 4; i++) {
+        t = texture2D(topViews[i], vec2(p.x, 1.0 - p.z)).a;
+        f = texture2D(frontViews[i], p.xy).a;
+        s = texture2D(sideViews[i], p.zy).a;
+
+        if (t < 0.5 && f < 0.5 && s < 0.5) {
+            result += 1.0;
+        }
+    }
+    #pragma unroll_loop_end
+
+    return result/4.0;
+}
+
+// https://iquilezles.org/articles/normalsSDF/
+vec3 sampleNormal(vec3 p) {
+    const float eps = 0.1; // or some other value
+    const vec2 h = vec2(eps,0);
+    return normalize( vec3(sampleDistanceBinary(p+h.xyy) - sampleDistanceBinary(p-h.xyy),
+                           sampleDistanceBinary(p+h.yxy) - sampleDistanceBinary(p-h.yxy),
+                           sampleDistanceBinary(p+h.yyx) - sampleDistanceBinary(p-h.yyx) ) );
+}
+`;
+
 export class VolumeMaterial extends ShaderMaterial {
+    renderer;
+
     topViews;
     frontViews;
     sideViews;
 
-    constructor({topViews, frontViews, sideViews}) {
+    constructor(renderer, {topViews, frontViews, sideViews}) {
         super();
+
+        this.renderer = renderer;
 
         this.topViews = topViews;
         this.frontViews = frontViews;
         this.sideViews = sideViews;
-        
-        this.uniforms["topViews"] = { type: "tv", value: topViews };
-        this.uniforms["frontViews"] = { type: "tv", value: frontViews };
-        this.uniforms["sideViews"] = { type: "tv", value: sideViews };
+
+        this.uniforms["topViews"] = { type: "tv", value: this.topViews };
+        this.uniforms["frontViews"] = { type: "tv", value: this.frontViews };
+        this.uniforms["sideViews"] = { type: "tv", value: this.sideViews };
 
         this.vertexShader = `
 varying vec3 v_position;
@@ -100,6 +157,7 @@ bool intersectBox(const vec3 boxMin, const vec3 boxMax, const Ray r, out Hit hit
 }
 
 ${sampleVolumeSnippet}
+${sampleNormalSnippet}
 
 void main() {
     gl_FragColor = vec4(1,1,1,1);

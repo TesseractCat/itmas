@@ -1,5 +1,5 @@
 import { aliasedLine, aliasedCircle } from './aliased';
-import { Texture, DataTexture } from 'three';
+import { Texture, DataTexture, Vector2 } from 'three';
 
 export const BrushType = {
     Circle: 'Circle',
@@ -9,7 +9,56 @@ export const BrushType = {
 
 function floodFill(ctx, x, y, color) {
     let imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-    // TODO: Implement
+
+    function rgbToUint8Array(rgb) {
+        let components = rgb.split("(")[1].split(")")[0].split(",").map(x => parseInt(x));
+        components.push(255);
+        return new Uint8Array(components);
+    }
+    function getColor(p) {
+        return imageData.data.slice(
+            (p[1] * ctx.canvas.width + p[0]) * 4,
+            ((p[1] * ctx.canvas.width + p[0]) * 4) + 4);
+    }
+    function setColor(p, c) {
+        imageData.data[((p[1] * ctx.canvas.width + p[0]) * 4) + 0] = c[0];
+        imageData.data[((p[1] * ctx.canvas.width + p[0]) * 4) + 1] = c[1];
+        imageData.data[((p[1] * ctx.canvas.width + p[0]) * 4) + 2] = c[2];
+        imageData.data[((p[1] * ctx.canvas.width + p[0]) * 4) + 3] = c[3];
+    }
+    function compareColors(a, b) {
+        return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3];
+    }
+
+    let fillColor = rgbToUint8Array(color == "transparent" ? "rgb(0,0,0)" : color);
+    if (color == "transparent")
+        fillColor[3] = 0;
+    let startColor = getColor([x, y]);
+
+    let stack = [[x, y]];
+    while (stack.length > 0) {
+        let next = stack.pop();
+        let neighbors = [
+            [next[0] - 1, next[1] + 0],
+            [next[0] + 1, next[1] + 0],
+            [next[0] + 0, next[1] - 1],
+            [next[0] + 0, next[1] + 1],
+        ];
+
+        for (let neighbor of neighbors) {
+            if (neighbor[0] < 0 || neighbor[1] < 0 ||
+                neighbor[0] >= ctx.canvas.width ||
+                neighbor[1] >= ctx.canvas.width)
+                continue;
+
+            if (compareColors(getColor(neighbor), startColor)) {
+                stack.push(neighbor);
+                setColor(neighbor, fillColor);
+            }
+        }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
 }
 
 const brushScale = 10;
@@ -20,14 +69,15 @@ class Cloth extends HTMLElement {
 
     size;
 
-    color = "black";
+    color = "rgb(0,0,0)";
     brushSize = 0.5;
     brushStyle = BrushType.Circle;
 
     textures = Array(4).fill(null).map(() => {
         let t = new DataTexture(
-            new Uint8Array([0,0,0,0]), 1, 1
+            new Uint8Array(256 * 256 * 4), 256, 256
         );
+        t.flipY = true;
         t.needsUpdate = true;
         return t;
     });
@@ -119,8 +169,6 @@ class Cloth extends HTMLElement {
 }
 `;
 
-        this.initLayer(0);
-
         this.shadowRoot.append(style, canvas, overlayCanvas, title);
     }
 
@@ -147,6 +195,8 @@ class Cloth extends HTMLElement {
             ]
         };
     }
+
+    start;
     handleMouseDown(e) {
         if (this.layer == -1)
             return;
@@ -158,16 +208,35 @@ class Cloth extends HTMLElement {
             this.ctx.fillStyle = this.ctx.strokeStyle = "white";
 
         let {current} = this.eventToCanvasCoords(e);
+        this.start = current;
         if (this.color == "transparent")
             this.ctx.globalCompositeOperation = "destination-out";
-        let brushSize = e.pointerType == "pen" ? Math.max(e.pressure, 0.2) : this.brushSize;
-        aliasedLine(this.ctx, current, current, brushSize * brushScale, this.brushStyle == BrushType.Square);
-        this.ctx.globalCompositeOperation = "source-over";
 
+        if (e.ctrlKey) {
+            floodFill(this.ctx, Math.floor(current[0]), Math.floor(current[1]), this.color);
+            this.mouseDown = false;
+        } else {
+            let brushSize = e.pointerType == "pen" ? Math.max(e.pressure, 0.2) : this.brushSize;
+            aliasedLine(this.ctx, current, current, brushSize * brushScale, this.brushStyle == BrushType.Square);
+        }
+
+        this.ctx.globalCompositeOperation = "source-over";
         this.invalidate(this.layer);
     }
     handleMouseMove(e) {
         let {current, previous} = this.eventToCanvasCoords(e);
+        // Straight lines
+        // if (e.shiftKey && this.mouseDown) {
+        //     let u = new Vector2(
+        //         Math.abs(current[0] - this.start[0]),
+        //         Math.abs(current[1] - this.start[1])).normalize();
+        //     let horizontal = u.x > u.y;
+        //     if (horizontal) {
+        //         current[1] = previous[1] = this.start[1];
+        //     } else {
+        //         current[0] = previous[0] = this.start[0];
+        //     }
+        // }
         let brushSize = e.pointerType == "pen" ? Math.max(e.pressure, 0.2) : this.brushSize;
 
         this.overlayCtx.clearRect(0, 0,
@@ -201,16 +270,10 @@ class Cloth extends HTMLElement {
     invalidate(layer) {
         this.textures[layer].image.data = this.ctx.getImageData(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
         this.textures[layer].needsUpdate = true;
-    }
-    initLayer(layer) {
-        if (this.textures[layer] != null)
-            this.textures[layer].dispose();
 
-        this.textures[layer] =
-            new DataTexture(this.ctx.getImageData(0, 0, this.ctx.canvas.width, this.ctx.canvas.height),
-                            this.ctx.canvas.width, this.ctx.canvas.height);
-        this.textures[layer].flipY = true;
-        this.textures[layer].needsUpdate = true;
+        this.dispatchEvent(new CustomEvent("change", {
+            detail: layer
+        }));
     }
     async saveToLayer(layer) {
         const blob = await new Promise(resolve => this.ctx.canvas.toBlob(resolve));
@@ -232,35 +295,33 @@ class Cloth extends HTMLElement {
 
             this.ctx.drawImage(img, 0, 0);
             URL.revokeObjectURL(blobUrl);
-        } else {
-            this.initLayer(layer);
         }
     }
 
     async serialize() {
+        // Only save this layer because other layers
+        //    should have been saved using loadLayer
         await this.saveToLayer(this.layer);
         return this.layers;
     }
     async deserialize(layers) {
+        console.assert(layers.length == 4);
         this.layer = -1;
         this.layers = layers;
 
         for (let [i, l] of this.layers.entries()) {
-            if (l == null) {
-                this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
-                this.initLayer(i);
-                continue;
+            this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+
+            if (l != null) {
+                let img = new Image();
+                let blobUrl = URL.createObjectURL(l);
+                img.setAttribute("src", blobUrl);
+                await new Promise(resolve => img.addEventListener("load", resolve));
+                this.ctx.drawImage(img, 0, 0);
+                URL.revokeObjectURL(blobUrl);
             }
 
-            this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
-            let img = new Image();
-            let blobUrl = URL.createObjectURL(l);
-            img.setAttribute("src", blobUrl);
-            await new Promise(resolve => img.addEventListener("load", resolve));
-            this.ctx.drawImage(img, 0, 0);
-            URL.revokeObjectURL(blobUrl);
-
-            this.initLayer(i);
+            this.invalidate(i);
         }
         await this.loadLayer(0); 
     }
