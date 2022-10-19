@@ -95,6 +95,9 @@ export function bresenhamLine(ctx, p1, p2, radius = 1) {
     ctx.putImageData(imageData, min[0], min[1]);
 }
 export function aliasedLine(ctx, p1, p2, radius, square = false) {
+    radius = Math.floor(radius);
+
+    // Line
     bresenhamLine(ctx, p1, p2, radius);
 
     // Caps
