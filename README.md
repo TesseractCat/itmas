@@ -1,4 +1,4 @@
-<img src="screenshot.jpg" align="right" width="500" />
+<img src="images/screenshot.jpg" align="right" width="500" />
 
 # Itmas - Three-View 3D modeling software
 
