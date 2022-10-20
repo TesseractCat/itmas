@@ -18,7 +18,8 @@ import JSZip from 'JSZip';
 //  - Jump Flood/SDF:
 //      - Shading/normals
 //  - Canvas:
-//      - Fix anti-aliased artifacts
+//      - Fix weird lines
+//      - Direction indicator
 //      - Light preview of CSG on cloth
 //      - Undo/Redo
 //      - Straight line tool
@@ -27,6 +28,8 @@ import JSZip from 'JSZip';
 //      - Preview
 //      - Hide/show
 //      - Move in space
+//  - Misc:
+//      - Fix example model artifacts
 
 function saveAs(blob, name) {
     const blobUrl = URL.createObjectURL(blob);
@@ -290,27 +293,18 @@ void main() {
     });
 
     // document.addEventListener("keydown", async (e) => {
+    //     function rgbToArray(rgb) {
+    //         return [...rgb.split("(")[1].split(")")[0].split(",").map(x => parseInt(x)), 255];
+    //     }
     //     if (e.key == " ") {
-    //         let result = jumpFlood(renderer, views[1][0]);
-
-    //         let buffer = new Float32Array(256 * 256 * 4);
-    //         let pixels = new Uint8ClampedArray(256 * 256 * 4);
-
-    //         const exportCanvas = document.createElement("canvas");
-    //         exportCanvas.width = 256;
-    //         exportCanvas.height = 256;
-    //         const ctx = exportCanvas.getContext("2d");
-
-    //         renderer.readRenderTargetPixels(result, 0, 0, 256, 256, buffer);
-
-    //         for (let i = 0; i < buffer.length; i++)
-    //             pixels[i] = buffer[i] * 255;
-
-    //         let imageData = new ImageData(pixels, 256, 256);
-    //         ctx.putImageData(imageData, 0, 0);
-
-    //         const blob = await new Promise(resolve => exportCanvas.toBlob(resolve));
-    //         console.log(URL.createObjectURL(blob));
+    //         for (let cloth of cloths) {
+    //             for (let i = 0; i < 4; i++) {
+    //                 await cloth.loadLayer(i);
+    //                 cloth.palettize(
+    //                     [...palette.getColors().map(rgbToArray), [0,0,0,0]]
+    //                 );
+    //             }
+    //         }
     //     }
     // });
 

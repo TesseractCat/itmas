@@ -183,6 +183,39 @@ class Cloth extends HTMLElement {
         if (manual)
             this.invalidate(this.layer);
     }
+    palettize(colors) {
+        function distance(a, b) {
+            let d = [
+                a[0] - b[0], a[1] - b[1], a[2] - b[2], a[3] - b[3]
+            ];
+            return Math.sqrt(
+                d[0] * d[0] + d[1] * d[1] + d[2] * d[2] + d[3] * d[3]
+            );
+        }
+
+        let imageData = this.ctx.getImageData(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+        for (let x = 0; x < this.ctx.canvas.width; x++ ) {
+            for (let y = 0; y < this.ctx.canvas.height; y++ ) {
+                let color = imageData.data.slice(
+                    (y * this.ctx.canvas.width + x) * 4,
+                    ((y * this.ctx.canvas.width + x) * 4) + 4,
+                );
+                let minDistance = 9999.0;
+                let minColor = [0,0,0,0];
+                for (let compare of colors) {
+                    if (distance(color, compare) < minDistance) {
+                        minDistance = distance(color, compare);
+                        minColor = compare;
+                    }
+                }
+                imageData.data[((y * this.ctx.canvas.width + x) * 4) + 0] = minColor[0];
+                imageData.data[((y * this.ctx.canvas.width + x) * 4) + 1] = minColor[1];
+                imageData.data[((y * this.ctx.canvas.width + x) * 4) + 2] = minColor[2];
+                imageData.data[((y * this.ctx.canvas.width + x) * 4) + 3] = minColor[3];
+            }
+        }
+        this.ctx.putImageData(imageData, 0, 0);
+    }
 
     previousX = 0;
     previousY = 0;
