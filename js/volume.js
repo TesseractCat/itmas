@@ -2,6 +2,11 @@ import { ShaderMaterial, CanvasTexture, DoubleSide } from 'three';
 import { jumpFlood } from './jumpflood';
 
 export const sampleVolumeSnippet = `
+float distSq(vec3 a, vec3 b) {
+    vec3 d = a - b;
+    return dot(d, d);
+}
+
 vec4 sampleVolume(vec3 p) { // p: (0-1, 0-1, 0-1)
     vec4 t = vec4(0,0,0,0);
     vec4 f = vec4(0,0,0,0);
@@ -12,22 +17,25 @@ vec4 sampleVolume(vec3 p) { // p: (0-1, 0-1, 0-1)
     #pragma unroll_loop_start
     for (int i = 0; i < 4; i++) {
         t = texture2D(topViews[i], vec2(p.x, 1.0 - p.z));
+        if (t.a > 0.5) {
         f = texture2D(frontViews[i], p.xy);
+        if (f.a > 0.5) {
         s = texture2D(sideViews[i], p.zy);
+        if (s.a > 0.5) {
 
-        if (t.a > 0.5 && f.a > 0.5 && s.a > 0.5) {
-            //result = vec4((t.xyz + f.xyz + s.xyz)/3.0, 1);
+        //result = vec4((t.xyz + f.xyz + s.xyz)/3.0, 1);
+        result = vec4(f.xyz, 1);
+
+        float thresholdSq = 0.01 * 0.01;
+        if (distSq(f.xyz, s.xyz) < thresholdSq)
             result = vec4(f.xyz, 1);
+        if (distSq(t.xyz, f.xyz) < thresholdSq)
+            result = vec4(t.xyz, 1);
+        if (distSq(t.xyz, s.xyz) < thresholdSq)
+            result = vec4(t.xyz, 1);
 
-            if (distance(f.xyz, s.xyz) < 0.01)
-                result = vec4(f.xyz, 1);
-            if (distance(t.xyz, f.xyz) < 0.01)
-                result = vec4(t.xyz, 1);
-            if (distance(t.xyz, s.xyz) < 0.01)
-                result = vec4(t.xyz, 1);
-
-            return result;
-        }
+        return result;
+        }}}
     }
     #pragma unroll_loop_end
 
@@ -128,6 +136,8 @@ uniform sampler2D sideViews[4];
 varying vec3 v_position;
 varying vec2 v_uv;
 
+uniform mat4 projectionMatrix;
+
 struct Ray {
     vec3 origin;
     vec3 dir;
@@ -156,11 +166,28 @@ bool intersectBox(const vec3 boxMin, const vec3 boxMax, const Ray r, out Hit hit
     return t1 > max(t0, 0.0);
 }
 
+float worldToDepth(const vec3 worldPos) {
+    vec4 clip = projectionMatrix * viewMatrix * vec4(worldPos, 1.0);
+
+    // NDC (−1..1)
+    vec3 ndc = clip.xyz / clip.w;
+
+    // Convert NDC z to depth buffer value (0..1)
+    float depth = ndc.z * 0.5 + 0.5;
+
+    return depth;
+}
+
+float rand(vec2 co) {
+    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
 ${sampleVolumeSnippet}
 ${sampleNormalSnippet}
 
 void main() {
     gl_FragColor = vec4(1,1,1,1);
+    gl_FragDepth = 1.0;
 
     Ray r = Ray(cameraPosition,
                 normalize(v_position - cameraPosition),
@@ -174,13 +201,26 @@ void main() {
     if (inBox(cameraPosition))
         a = cameraPosition;
 
-    for (float i = 0.0; i < 128.0; i++) {
-        vec3 p = mix(a, b, i/128.0);
+    float density = 128.0;
+    float rl = distance(a, b)/1.73; // ray length 0-1 with the maximum length being cube diagonal
+    int steps = clamp(int(rl * density), 2, 128);
+
+    vec3 stepVector = (b - a) / float(steps);
+    float jitter = rand(gl_FragCoord.xy);
+    vec3 p = a + (stepVector * jitter * 0.5);
+
+    // gl_FragColor = vec4(vec3(float(steps)/128.0), 1.0);
+    // return;
+
+    for (int i = 0; i < 128; i++) {
+        if (i >= steps) break;
+        p += stepVector;
         vec3 mp = p + vec3(0.5,0.5,0.5);
 
         vec4 result = sampleVolume(mp);
         if (result.a > 0.0) {
             gl_FragColor = result;
+            gl_FragDepth = worldToDepth(p);
             break;
         }
     }

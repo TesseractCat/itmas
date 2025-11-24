@@ -84,7 +84,7 @@ label[disabled] {
     cursor: pointer;
     color: var(--shadow-color);
 
-    box-shadow: 10px 10px var(--shadow-color);
+    box-shadow: 9px 10px var(--shadow-color);
     background-color: var(--tab-color);
     outline:none;
     border:none;

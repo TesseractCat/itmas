@@ -4,7 +4,13 @@ import './layer';
 
 import { Scene, PerspectiveCamera, OrthographicCamera, WebGLRenderer,
          Mesh, BoxGeometry, MeshBasicMaterial,
-         CanvasTexture } from 'three';
+         CanvasTexture, 
+         CylinderGeometry,
+         LineDashedMaterial,
+         Line,
+         BufferGeometry,
+         Vector3,
+         Euler} from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
 
@@ -12,6 +18,11 @@ import { VolumeMaterial, sampleVolumeSnippet } from './volume';
 import { MagicaVoxel } from './vox';
 import { jumpFlood } from './jumpflood';
 import JSZip from 'JSZip';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
+import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 
 // TODO:
 //  - Favicon/meta tags
@@ -28,8 +39,6 @@ import JSZip from 'JSZip';
 //      - Preview
 //      - Hide/show
 //      - Move in space
-//  - Misc:
-//      - Fix example model artifacts
 
 function saveAs(blob, name) {
     const blobUrl = URL.createObjectURL(blob);
@@ -49,10 +58,10 @@ window.addEventListener('load', () => {
     const canvas = document.getElementById("three-canvas");
     let {width, height} = canvas.getBoundingClientRect();
     // TODO: On resize, resize
-    canvas.width = width;
-    canvas.height = width;
+    canvas.width = 512;
+    canvas.height = 512;
 
-    const renderer = new WebGLRenderer({canvas: canvas});
+    const renderer = new WebGLRenderer({canvas: canvas, powerPreference: "high-performance"});
     renderer.setClearColor(0xffffff);
 
     // FIXME: Inconsistent ordering!
@@ -134,7 +143,7 @@ window.addEventListener('load', () => {
             let folder = zip.folder(cloth.id);
 
             for (const [i, layer] of (await cloth.serialize()).entries()) {
-                if (layer != null)
+                if (layer.latestBlob() != null)
                     folder.file(`layer-${i}.png`, layer);
             }
         }
@@ -171,6 +180,9 @@ window.addEventListener('load', () => {
                 palette.setColors(metadata["palette"]);
             }
         }
+
+        document.querySelector("itmas-layer.selected")?.classList.remove("selected");
+        document.querySelector("itmas-layer[layer='0']")?.classList.add("selected");
     }
     document.getElementById("load").addEventListener("change", async (e)  => {
         const files = e.target.files;
@@ -308,12 +320,100 @@ void main() {
     //     }
     // });
 
-    const geometry = new BoxGeometry(1, 1, 1);
-    const material = new VolumeMaterial(renderer, {
+    // Create volume box
+    const volumeGeometry = new BoxGeometry(1, 1, 1);
+    const volumeMaterial = new VolumeMaterial(renderer, {
         topViews: views[0],
         frontViews: views[1],
         sideViews: views[2],
     });
-    const cube = new Mesh(geometry, material);
-    scene.add(cube);
+    const volume = new Mesh(volumeGeometry, volumeMaterial);
+    scene.add(volume);
+
+    // Create cursor
+    const cursorGeometry = new CylinderGeometry(0.025, 0.025, 1, 16);
+    const cursorMaterial = new MeshBasicMaterial({
+        color: "#AAA",
+        transparent: true,
+        opacity: 0.5
+    });
+    const cursor = new Mesh(cursorGeometry, cursorMaterial);
+    cursor.visible = false;
+    scene.add(cursor);
+
+    document.getElementById("brush").addEventListener("change", (e) => {
+        const size = parseInt(e.target.value)/parseInt(e.target.getAttribute("max")) * 2;
+        cursor.scale.set(size, 1, size);
+    });
+
+    for (let cloth of cloths) {
+        cloth.addEventListener("clothmove", (e) => {
+            if (e.target.id == "top-view") {
+                cursor.rotation.set(0, 0, 0);
+                cursor.position.set(
+                    -0.5 + e.detail.x,
+                    0,
+                    -0.5 + e.detail.y,
+                );
+            } else if (e.target.id == "side-view") {
+                cursor.rotation.set(0, 0, Math.PI / 2);
+                cursor.position.set(
+                    0,
+                    0.5 - e.detail.y,
+                    -0.5 + e.detail.x,
+                );
+            } else if (e.target.id == "front-view") {
+                cursor.rotation.set(Math.PI / 2, 0, 0);
+                cursor.position.set(
+                    -0.5 + e.detail.x,
+                    0.5 - e.detail.y,
+                    0,
+                );
+            }
+        });
+        cloth.addEventListener("pointerover", () => {
+            cursor.visible = true;
+        });
+        cloth.addEventListener("pointerout", () => {
+            cursor.visible = false;
+        });
+    }
+
+    // Create bounding box
+    const dashedMaterial = new LineMaterial({
+        color: "#aaa",
+        transparent: true,
+        opacity: 0.1,
+        linewidth: 0.01,
+    });
+    const points = [
+        0.5, 0.5, 0.5,
+        -0.5, 0.5, 0.5,
+        0.5, 0.5, 0.5,
+        0.5, -0.5, 0.5,
+        -0.5, -0.5, 0.5,
+        0.5, -0.5, 0.5,
+        -0.5, -0.5, 0.5,
+        -0.5, 0.5, 0.5,
+        0.5, 0.5, -0.5,
+        -0.5, 0.5, -0.5,
+        0.5, 0.5, -0.5,
+        0.5, -0.5, -0.5,
+        -0.5, -0.5, -0.5,
+        0.5, -0.5, -0.5,
+        -0.5, -0.5, -0.5,
+        -0.5, 0.5, -0.5,
+        0.5, 0.5, 0.5,
+        0.5, 0.5, -0.5,
+        -0.5, 0.5, 0.5,
+        -0.5, 0.5, -0.5,
+        0.5, -0.5, 0.5,
+        0.5, -0.5, -0.5,
+        -0.5, -0.5, 0.5,
+        -0.5, -0.5, -0.5,
+    ];
+    const boundingGeometry = new LineSegmentsGeometry();
+    boundingGeometry.setPositions(points);
+    const line = new LineSegments2( boundingGeometry, dashedMaterial );
+    scene.add(line);
 });

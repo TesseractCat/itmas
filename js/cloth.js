@@ -69,6 +69,67 @@ function floodFill(ctx, x, y, erase) {
 
 const brushScale = 10;
 
+const undoAmount = 16;
+
+class UndoManager {
+    blobs = [null];
+    pointer = 0;
+
+    clear(empty = true) {
+        if (empty) {
+            this.blobs = [];
+            this.pointer = -1;
+        } else {
+            this.blobs = [null];
+            this.pointer = 0;
+        }
+    }
+    latestBlob() {
+        if (this.blobs.length == 0) return null;
+        return this.blobs[this.blobs.length - 1];
+    }
+    async push(ctx) {
+        const blob = await new Promise(resolve => ctx.canvas.toBlob(resolve));
+        this.pointer++;
+        // If we undoed back to some point, and now we're pushing new states, remove all invalidated states
+        if (this.pointer != this.blobs.length) {
+            this.blobs.splice(this.pointer, this.blobs.length - this.pointer);
+        }
+        // Don't add more than the max
+        if (this.blobs.length == undoAmount) {
+            this.blobs.splice(0, 1);
+            this.pointer = undoAmount - 1;
+        }
+        this.blobs.push(blob);
+        // console.log(this.pointer);
+        // console.log(this.blobs);
+        console.assert(this.pointer == this.blobs.length - 1);
+    }
+    async undo(ctx) {
+        if (this.pointer <= 0) return;
+        this.pointer--;
+        // console.log(this.pointer);
+        // console.log(this.blobs);
+        await this.restore(ctx);
+    }
+    async redo(ctx) {
+        if (this.pointer < this.blobs.length - 1) {
+            this.pointer++;
+            await this.restore(ctx);
+        }
+    }
+    async restore(ctx) {
+        let blob = this.blobs[this.pointer];
+        if (blob == null) {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        } else {
+            let bitmap = await createImageBitmap(blob);
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.drawImage(bitmap, 0, 0);
+        }
+    }
+}
+
 class Cloth extends HTMLElement {
     ctx;
     overlayCtx;
@@ -87,7 +148,7 @@ class Cloth extends HTMLElement {
         t.needsUpdate = true;
         return t;
     });
-    layers = Array(4).fill(null);
+    layers = Array(4).fill(null).map(() => new UndoManager());
     layer = 0;
 
     mouseDown = false;
@@ -122,6 +183,27 @@ class Cloth extends HTMLElement {
         titleSlot.textContent = "Placeholder";
         title.append(titleSlot);
 
+        const undoredo = document.createElement("div");
+        undoredo.id = "undoredo";
+
+        const undo = document.createElement("div");
+        undo.id = "undo";
+        undo.textContent = "↶";
+        undo.addEventListener("click", async () => {
+            await this.layers[this.layer].undo(this.ctx);
+            this.invalidate(this.layer);
+        });
+        undoredo.append(undo);
+
+        const redo = document.createElement("div");
+        redo.id = "redo";
+        redo.textContent = "↷";
+        redo.addEventListener("click", async () => {
+            await this.layers[this.layer].redo(this.ctx);
+            this.invalidate(this.layer);
+        });
+        undoredo.append(redo);
+
         const style = document.createElement("style");
         style.textContent = `
 :host {
@@ -146,8 +228,12 @@ class Cloth extends HTMLElement {
     border: none;
     border-radius: inherit;
 
-    background-size: 10% 10%;
-    background-image: linear-gradient(to right, #d7d7d7 1px, transparent 1px), linear-gradient(to bottom, #d7d7d7d7 1px, transparent 1px);
+    background-size: 25% 25%, 25% 25%, 8.3% 8.3%, 8.3% 8.3%;
+    background-image:
+        linear-gradient(to right, #aaa 1px, transparent 1px),
+        linear-gradient(to bottom, #aaa 1px, transparent 1px),
+        linear-gradient(to right, #d7d7d7 1px, transparent 1px),
+        linear-gradient(to bottom, #d7d7d7d7 1px, transparent 1px);
 }
 #title {
     position: absolute;
@@ -158,6 +244,17 @@ class Cloth extends HTMLElement {
     color: rgba(0,0,0,0.5);
 
     pointer-events: none;
+}
+#undoredo {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+
+    font-family: arial;
+    color: rgba(0,0,0,0.5);
+    font-weight: bold;
+
+    cursor: pointer;
 }
 #overlay {
     pointer-events: none;
@@ -175,7 +272,7 @@ class Cloth extends HTMLElement {
 }
 `;
 
-        this.shadowRoot.append(style, canvas, overlayCanvas, title);
+        this.shadowRoot.append(style, canvas, overlayCanvas, title, undoredo);
     }
 
     clear(manual = true) {
@@ -301,8 +398,21 @@ class Cloth extends HTMLElement {
 
         this.previousX = e.clientX;
         this.previousY = e.clientY;
+
+        const currentNormalized = {
+            x: current[0] / this.ctx.canvas.width,
+            y: current[1] / this.ctx.canvas.height,
+        };
+
+        if (currentNormalized.x >= 0 && currentNormalized.x <= 1 && currentNormalized.y >= 0 && currentNormalized.y <= 1) {
+            this.dispatchEvent(new CustomEvent("clothmove", {
+                detail: currentNormalized
+            }));
+        }
     }
     handleMouseUp(e) {
+        if (this.mouseDown)
+            this.layers[this.layer].push(this.ctx);
         this.mouseDown = false;
     }
 
@@ -315,26 +425,16 @@ class Cloth extends HTMLElement {
         }));
     }
     async saveToLayer(layer) {
-        const blob = await new Promise(resolve => this.ctx.canvas.toBlob(resolve));
-        this.layers[layer] = blob;
+        await this.layers[layer].push(this.ctx);
     }
     async loadLayer(layer) {
         if (this.layer == layer)
             return;
         await this.saveToLayer(this.layer);
-        this.clear(false);
 
         this.layer = layer;
 
-        if (this.layers[this.layer] != null) {
-            let img = new Image();
-            let blobUrl = URL.createObjectURL(this.layers[this.layer]);
-            img.setAttribute("src", blobUrl);
-            await new Promise(resolve => img.addEventListener("load", resolve));
-
-            this.ctx.drawImage(img, 0, 0);
-            URL.revokeObjectURL(blobUrl);
-        }
+        await this.layers[layer].restore(this.ctx);
     }
 
     async serialize() {
@@ -343,23 +443,19 @@ class Cloth extends HTMLElement {
         await this.saveToLayer(this.layer);
         return this.layers;
     }
-    async deserialize(layers) {
-        console.assert(layers.length == 4);
-        this.layer = -1;
-        this.layers = layers;
-
+    async deserialize(blobs) {
         for (let [i, l] of this.layers.entries()) {
+            this.layer = i;
+            l.clear();
             this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
-            if (l != null) {
-                let img = new Image();
-                let blobUrl = URL.createObjectURL(l);
-                img.setAttribute("src", blobUrl);
-                await new Promise(resolve => img.addEventListener("load", resolve));
-                this.ctx.drawImage(img, 0, 0);
-                URL.revokeObjectURL(blobUrl);
+            if (blobs[i] ?? null != null) {
+                let blob = blobs[i];
+                let bitmap = await createImageBitmap(blob);
+                this.ctx.drawImage(bitmap, 0, 0);
             }
 
+            await l.push(this.ctx);
             this.invalidate(i);
         }
         await this.loadLayer(0); 
