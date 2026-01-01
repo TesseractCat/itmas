@@ -16,7 +16,6 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
 
 import { VolumeMaterial, sampleVolumeSnippet } from './volume';
-import { MagicaVoxel } from './vox';
 import { jumpFlood } from './jumpflood';
 import JSZip from 'JSZip';
 import { Line2 } from 'three/addons/lines/Line2.js';
@@ -24,6 +23,7 @@ import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
+
 
 // TODO:
 //  - Favicon/meta tags
@@ -210,11 +210,32 @@ window.addEventListener('load', () => {
         await loadZip(file);
     });
     document.getElementById("export").addEventListener("click", async () => {
-        [...document.querySelectorAll("#buttons *")]
-            .forEach((elem) => elem.setAttribute('disabled',''));
-        
-        let zip = new JSZip();
-        let vox = new MagicaVoxel();
+        const buttons = [...document.querySelectorAll("#buttons *")];
+        buttons.forEach((elem) => elem.setAttribute('disabled',''));
+        document.documentElement.style.setProperty("--progress", "0%");
+
+        const worker = new Worker("/js/exportWorker.js", { type: "module" });
+        worker.postMessage({ type: "init", totalLayers: 256 });
+
+        worker.addEventListener("message", (event) => {
+            const message = event.data;
+            if (!message)
+                return;
+            if (message.type === "progress") {
+                document.documentElement.style.setProperty("--progress", `${message.percent}%`);
+            } else if (message.type === "done") {
+                saveAs(message.blob, message.filename);
+                document.documentElement.style.setProperty("--progress", "0%");
+                buttons.forEach((elem) => elem.removeAttribute('disabled'));
+                worker.terminate();
+            }
+        });
+        worker.addEventListener("error", (event) => {
+            console.error("export worker error", event);
+            document.documentElement.style.setProperty("--progress", "0%");
+            buttons.forEach((elem) => elem.removeAttribute('disabled'));
+            worker.terminate();
+        });
 
         const gpuCompute = new GPUComputationRenderer(256, 256, renderer);
         const test = gpuCompute.createShaderMaterial(`
@@ -248,56 +269,33 @@ void main() {
         let buffer = new Float32Array(256 * 256 * 4);
         let renderTarget = gpuCompute.createRenderTarget();
 
-        const exportCanvas = document.createElement("canvas");
-        exportCanvas.width = 256;
-        exportCanvas.height = 256;
-        const ctx = exportCanvas.getContext("2d");
-
-        let pixels = new Uint8ClampedArray(256 * 256 * 4);
-
         for (let layer = 0; layer < 256; layer++) {
-            document.documentElement.style.setProperty("--progress", `${(layer/256)*100}%`);
-
             test.uniforms.layer.value = layer;
 
             gpuCompute.doRenderTarget(test, renderTarget);
 
             renderer.readRenderTargetPixels(renderTarget, 0, 0, 256, 256, buffer);
 
+            let pixels = new Uint8ClampedArray(256 * 256 * 4);
             for (let i = 0; i < buffer.length/4; i++) {
                 pixels[(i * 4) + 0] = buffer[(i * 4) + 0] * 255;
                 pixels[(i * 4) + 1] = buffer[(i * 4) + 1] * 255;
                 pixels[(i * 4) + 2] = buffer[(i * 4) + 2] * 255;
                 pixels[(i * 4) + 3] = buffer[(i * 4) + 3] * 255;
-
-                if (pixels[(i * 4) + 3] > 128) {
-                    let x = i % 256;
-                    let y = Math.floor(i/256);
-                    vox.addVoxel([x, y, layer],
-                                 (pixels[(i * 4) + 0] << 24) |
-                                 (pixels[(i * 4) + 1] << 16) |
-                                 (pixels[(i * 4) + 2] << 8)  |
-                                 (pixels[(i * 4) + 3] << 0)
-                                );
-                }
             }
-            let imageData = new ImageData(pixels, 256, 256);
-            ctx.putImageData(imageData, 0, 0);
 
-            // const blob = await new Promise(resolve => exportCanvas.toBlob(resolve));
-            // zip.file(`${String(layer).padStart(3, '0')}.png`, blob);
+            worker.postMessage({
+                type: "layer",
+                layer,
+                width: 256,
+                height: 256,
+                pixels: pixels.buffer
+            }, [pixels.buffer]);
         }
-        document.documentElement.style.setProperty("--progress", "0%");
 
-        let blob = vox.toBlob();
-        saveAs(blob, "export.vox");
-
-        // zip.generateAsync({type:"blob"}).then(async (blob) => {
-        //     saveAs(blob, "export.zip");
-        // });
-        [...document.querySelectorAll("#buttons *")]
-            .forEach((elem) => elem.removeAttribute('disabled'));
+        worker.postMessage({ type: "finalize", filename: "export.vox" });
     });
+
 
     [...document.getElementsByTagName("itmas-layer")].forEach((layerTab) => {
         loadingLayers = false;
