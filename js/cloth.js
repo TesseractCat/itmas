@@ -209,10 +209,16 @@ class Cloth extends HTMLElement {
 :host {
     transform: scale(1);
     display: block;
-    width: 500px;
-    height: 500px;
 
     user-select: none;
+
+    background-size: 25% 25%, 25% 25%, calc(100% / 12) calc(100% / 12), calc(100% / 12) calc(100% / 12);
+    background-color: #FFF;
+    background-image:
+        linear-gradient(to right, #aaa 1px, transparent 1px),
+        linear-gradient(to bottom, #aaa 1px, transparent 1px),
+        linear-gradient(to right, #d7d7d7 1px, transparent 1px),
+        linear-gradient(to bottom, #d7d7d7 1px, transparent 1px);
 }
 
 * {
@@ -224,29 +230,25 @@ class Cloth extends HTMLElement {
     height: 100%;
 
     image-rendering: pixelated;
-    background-color: #FFF;
+    background-color: transparent;
     border: none;
     border-radius: inherit;
 
-    background-size: 25% 25%, 25% 25%, 8.3% 8.3%, 8.3% 8.3%;
-    background-image:
-        linear-gradient(to right, #aaa 1px, transparent 1px),
-        linear-gradient(to bottom, #aaa 1px, transparent 1px),
-        linear-gradient(to right, #d7d7d7 1px, transparent 1px),
-        linear-gradient(to bottom, #d7d7d7d7 1px, transparent 1px);
 }
 #title {
     position: absolute;
     top: 10px;
     left: 10px;
 
-    font-family: arial;
-    color: rgba(0,0,0,0.5);
+    color: var(--canvas-label-color);
 
     pointer-events: none;
 }
 #undoredo {
     position: absolute;
+    display: flex;
+    gap: 5px;
+
     top: 5px;
     right: 10px;
 

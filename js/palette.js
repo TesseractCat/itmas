@@ -102,7 +102,7 @@ input {
 .color {
     display: block;
     outline: 3px solid black;
-    border-radius: var(--roundness);
+    border-radius: var(--button-roundness);
 
     width: 100%;
     flex-grow: 1;

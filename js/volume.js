@@ -87,11 +87,12 @@ float sampleDistanceBinary(vec3 p) {
 
 // https://iquilezles.org/articles/normalsSDF/
 vec3 sampleNormal(vec3 p) {
-    const float eps = 0.1; // or some other value
-    const vec2 h = vec2(eps,0);
-    return normalize( vec3(sampleDistanceBinary(p+h.xyy) - sampleDistanceBinary(p-h.xyy),
-                           sampleDistanceBinary(p+h.yxy) - sampleDistanceBinary(p-h.yxy),
-                           sampleDistanceBinary(p+h.yyx) - sampleDistanceBinary(p-h.yyx) ) );
+    return vec3(1,0,0);
+    // const float eps = 0.1; // or some other value
+    // const vec2 h = vec2(eps,0);
+    // return normalize( vec3(sampleDistanceBinary(p+h.xyy) - sampleDistanceBinary(p-h.xyy),
+    //                        sampleDistanceBinary(p+h.yxy) - sampleDistanceBinary(p-h.yxy),
+    //                        sampleDistanceBinary(p+h.yyx) - sampleDistanceBinary(p-h.yyx) ) );
 }
 `;
 
@@ -207,7 +208,7 @@ void main() {
 
     vec3 stepVector = (b - a) / float(steps);
     float jitter = rand(gl_FragCoord.xy);
-    vec3 p = a + (stepVector * jitter * 0.5);
+    vec3 p = a + (stepVector * jitter);
 
     // gl_FragColor = vec4(vec3(float(steps)/128.0), 1.0);
     // return;

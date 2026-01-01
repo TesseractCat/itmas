@@ -1,9 +1,13 @@
 :root {
-    --background-color: #DDD;/*#fefebe;*/
-    --shadow-color: #333;/*#6270aa;*/
+    --background-color: #999;/*#fefebe;*/
+    --shadow-color: #444;/*#6270aa;*/
+    --canvas-label-color: #888;
+    --text-color: #222;
     --tab-color: #CCC;
+    --tab-label-color: #EEE;
     --selected-tab-color: #EEC;
-    --roundness: 3px;
+    --roundness: 8px;
+    --button-roundness: 2px;
     --progress: 0%;
 }
 body {
@@ -13,21 +17,26 @@ body {
 * {
     box-sizing: border-box;
     user-select: none;
-    font-family: arial;
+
+    font-family: "M PLUS 1p", sans-serif;
+    font-weight: 700;
+    font-style: normal;
 }
 input[type=file] {
     display:none;
 }
-button, label {
-    border-radius: var(--roundness);
+button, label, select {
+    border-radius: var(--button-roundness);
+    background: linear-gradient(-180deg, #FFF 0%, #EEE 100%);
     border: 1px solid black;
     cursor: pointer;
     text-align: center;
-    padding: 1px 6px;
-    font-size: 0.8em;
+    padding: 2px 6px;
+    font-size: 1.05em;
+    font-weight: 500;
 }
-button:hover, label:hover {
-    background-color: #E0E0E0;
+button:hover, label:hover, select:hover {
+    background: linear-gradient(-180deg, #F5F5F5 0%, #E5E5E5 100%);
 }
 label[disabled] {
     color: rgba(16,16,16,0.3);
@@ -50,6 +59,7 @@ label[disabled] {
     display: flex;
     flex-direction: column;
     justify-content: space-evenly;
+    gap: 4px;
 }
 #controls #shape {
     line-height: 1.5rem;
@@ -58,8 +68,8 @@ label[disabled] {
 #controls #palette {
     align-self: stretch;
     flex-grow: 1;
-    padding:10px;
-    background: linear-gradient(0deg, rgba(0,0,0,0.4), rgba(0,0,0,0.4) var(--progress), rgba(0,0,0,0.1) var(--progress), rgba(0,0,0,0.1));
+    padding: 10px;
+    background: linear-gradient(0deg, hsl(207, 77%, 60%), hsl(207, 77%, 60%) var(--progress), rgba(0,0,0,0.1) var(--progress), rgba(0,0,0,0.1));
     border-radius: var(--roundness);
 }
 #controls #brush {
@@ -80,26 +90,53 @@ label[disabled] {
 #layers * {
     position: relative;
 
-    display:block;
+    display: block;
     cursor: pointer;
-    color: var(--shadow-color);
+    color: var(--text-color);
 
     box-shadow: 9px 10px var(--shadow-color);
-    background-color: var(--tab-color);
-    outline:none;
-    border:none;
+    /* background-color: var(--tab-color); */
+    background: linear-gradient(
+        to bottom,
+        var(--tab-color) 0%,
+        color-mix(in srgb, var(--tab-color) 90%, black 10%) 100%
+    );
+    outline: none;
+    border: none;
     border-left: 5px solid rgba(0,0,0,0.1);
     border-radius: 0px var(--roundness) var(--roundness) 0px;
 
-    height:60px;
-    line-height:60px;
+    height: 60px;
+    line-height: 60px;
 
     margin-top: 20px;
 
     transition: width 0.05s, transform 0.05s, box-shadow 0.05s;
 }
+#layers *.selected {
+    /* background-color: var(--selected-tab-color); */
+    background: linear-gradient(
+        to bottom,
+        var(--selected-tab-color) 0%,
+        color-mix(in srgb, var(--selected-tab-color) 90%, black 10%) 100%
+    );
+}
+#layers header {
+    width: 145px;
+    text-align: center;
+    font-size: 1.5rem;
+    /* background-color: var(--tab-label-color); */
+    background: linear-gradient(
+        to bottom,
+        var(--tab-label-color) 0%,
+        color-mix(in srgb, var(--tab-label-color) 90%, black 10%) 100%
+    );
+    cursor: unset;
+    /* font-style: italic; */
+    font-weight: 800;
+}
 #layers button {
-    font-size:4rem;
+    font-size: 4rem;
     width: 60px;
 }
 #layers button:hover {
@@ -107,7 +144,7 @@ label[disabled] {
 }
 #layers button:active, #layers itmas-layer:active {
     box-shadow: 5px 5px var(--shadow-color);
-    transform:translate(0px, 5px);
+    transform: translate(0px, 5px);
     width: 77px;
 }
 #layers itmas-layer {
@@ -115,9 +152,6 @@ label[disabled] {
     font-size: 1.5rem;
     font-weight: bold;
     text-align: center;
-}
-#layers itmas-layer.selected {
-    background-color: var(--selected-tab-color);
 }
 #layers itmas-layer:hover {
     width: 120%;
@@ -144,7 +178,8 @@ label[disabled] {
     padding: 20px;
 
     box-shadow: 10px 10px var(--shadow-color);
-    background-color: #EEE;
+    /* background-color: #EEE; */
+    background: linear-gradient(-180deg, #EEE 0%, #DEDEDE 100%);
 }
 
 #grid {
@@ -152,7 +187,7 @@ label[disabled] {
     aspect-ratio: 1/1;
     grid-template-columns: 49.5% 49.5%;
     grid-template-rows: 49.5% 49.5%;
-    gap:1%;
+    gap: 1%;
 
     /*height: 100%;*/
     height: calc(90vh - 40px); /* This fixes a Firefox display bug */
@@ -163,7 +198,7 @@ label[disabled] {
     width: 100%;
     height: 100%;
     border: 1px solid black;
-    border-radius: var(--roundness);
+    border-radius: 3px;
 }
 #grid #three {
     position: relative;

@@ -77,7 +77,9 @@ window.addEventListener('load', () => {
     controls.maxDistance = 3;
     controls.enableDamping = true;
 
-    camera.position.z = 1;
+    camera.position.z = 2;
+    camera.position.y = 1;
+    camera.position.x = 1;
     controls.update();
 
     function render() {
