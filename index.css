@@ -23,7 +23,7 @@ body {
     font-style: normal;
 }
 input[type=file] {
-    display:none;
+    display: none;
 }
 button, label, select {
     border-radius: var(--button-roundness);
@@ -82,8 +82,8 @@ label[disabled] {
 
 
 #layers {
-    align-self:flex-end;
-    margin-bottom:20px;
+    align-self: flex-end;
+    margin-bottom: 20px;
 
     width: 120px;
 }
@@ -182,7 +182,7 @@ label[disabled] {
     padding: 10px;
     min-width: 220px;
     border-radius: var(--roundness) 0px 0px var(--roundness);
-    background: linear-gradient(-180deg, #EEE 0%, #DEDEDE 100%);
+    background: linear-gradient(-180deg, #DFDFDF 0%, #C0C0C0 100%);
     box-shadow: 10px 10px var(--shadow-color);
 }
 
