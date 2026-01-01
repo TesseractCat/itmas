@@ -1,6 +1,7 @@
 import { BrushType } from './cloth';
 import './palette';
 import './layer';
+import './picker';
 
 import { Scene, PerspectiveCamera, OrthographicCamera, WebGLRenderer,
          Mesh, BoxGeometry, MeshBasicMaterial,
@@ -90,10 +91,22 @@ window.addEventListener('load', () => {
     }
     render();
 
-    document.getElementById("palette").addEventListener("change", (e) => {
+    // Wire up color palette and picker
+    const paletteElem = document.getElementById("palette");
+    const pickerElem = document.getElementById("picker");
+    paletteElem.addEventListener("change", (e) => {
+        pickerElem.setColor(e.detail);
         for (let cloth of cloths)
             cloth.color = e.detail;
     });
+    pickerElem.addEventListener("change", (e) => {
+        const color = e.detail;
+        for (let cloth of cloths)
+            cloth.color = color;
+        paletteElem.updateSelectedColor(color, { dispatch: false });
+    });
+    paletteElem.emitSelectedColor();
+
     document.getElementById("brush").addEventListener("change", (e) => {
         for (let cloth of cloths)
             cloth.brushSize = parseInt(e.target.value)/parseInt(e.target.getAttribute("max"));
@@ -180,6 +193,7 @@ window.addEventListener('load', () => {
 
             if ("palette" in metadata) {
                 palette.setColors(metadata["palette"]);
+                palette.emitSelectedColor();
             }
         }
 

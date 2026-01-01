@@ -1,5 +1,8 @@
 class Palette extends HTMLElement {
     divs = [];
+    selectedPaletteIndex = -1;
+    selectedColorDiv = null;
+    wrapper;
 
     constructor() {
         super();
@@ -19,58 +22,50 @@ class Palette extends HTMLElement {
             "#877aff",
         ];
 
-        let wrapper = document.createElement("div");
+        const wrapper = document.createElement("div");
         wrapper.id = "wrapper";
+        this.wrapper = wrapper;
 
-        for (const [i, color] of colors.entries()) {
-            let colorInput = document.createElement("input");
+        colors.forEach((color, i) => {
+            const colorInput = document.createElement("input");
             colorInput.type = "color";
-            colorInput.id = i;
+            const inputId = `palette-color-${i}`;
+            colorInput.id = inputId;
             colorInput.value = color;
 
-            let colorDiv = document.createElement("label");
-            colorDiv.setAttribute("for", i);
+            const colorDiv = document.createElement("label");
+            colorDiv.setAttribute("for", inputId);
             colorDiv.style.backgroundColor = color;
             colorDiv.classList.add("color");
             if (color == "transparent")
                 colorDiv.classList.add("transparent");
 
-            if (color == "black")
-                colorDiv.classList.add("selected");
+            const paletteIndex = color == "transparent" ? -1 : this.divs.length;
 
             colorDiv.addEventListener("click", (e) => {
-                for (const elem of [...wrapper.getElementsByClassName("selected")])
-                    elem.classList.remove("selected");
-                colorDiv.classList.add("selected");
-
-                this.dispatchEvent(new CustomEvent("change", {
-                    detail: colorDiv.style.backgroundColor
-                }));
-
+                this.setSelection(colorDiv, paletteIndex);
                 e.preventDefault();
             });
 
-            colorInput.addEventListener("change", (e) => {
-                colorDiv.style.backgroundColor = e.target.value;
-
-                this.dispatchEvent(new CustomEvent("change", {
-                    detail: e.target.value
-                }));
-            });
             if (color != "transparent") {
+                colorDiv.append(colorInput);
+                this.divs.push(colorDiv);
+
+                colorInput.addEventListener("change", (e) => {
+                    colorDiv.style.backgroundColor = e.target.value;
+                    this.setSelection(colorDiv, paletteIndex);
+                });
+
                 colorDiv.addEventListener("contextmenu", (e) => {
+                    this.setSelection(colorDiv, paletteIndex);
                     colorInput.dispatchEvent(new MouseEvent("click"));
                     e.preventDefault();
                     return false;
                 }, false);
             }
-            
-            if (color != "transparent") {
-                colorDiv.append(colorInput);
-                this.divs.push(colorDiv);
-            }
+
             wrapper.append(colorDiv);
-        }
+        });
 
         const style = document.createElement("style");
         style.textContent = `
@@ -120,8 +115,54 @@ input {
     background-image: linear-gradient(to right, #d7d7d7 1px, transparent 1px), linear-gradient(to bottom, #d7d7d7d7 1px, transparent 1px);
 }
 `;
-        
+
         this.shadowRoot.append(style, wrapper);
+
+        if (this.divs.length > 0) {
+            this.setSelection(this.divs[0], 0, false);
+        }
+    }
+
+    setSelection(colorDiv, paletteIndex, dispatch = true) {
+        if (!colorDiv)
+            return;
+        for (const elem of [...this.wrapper.getElementsByClassName("selected")])
+            elem.classList.remove("selected");
+        colorDiv.classList.add("selected");
+        this.selectedColorDiv = colorDiv;
+        this.selectedPaletteIndex = paletteIndex;
+        if (dispatch) {
+            this.dispatchEvent(new CustomEvent("change", {
+                detail: colorDiv.style.backgroundColor
+            }));
+        }
+    }
+
+    updateSelectedColor(color, { dispatch = true } = {}) {
+        if (this.selectedPaletteIndex < 0)
+            return false;
+        const colorDiv = this.divs[this.selectedPaletteIndex];
+        if (!colorDiv)
+            return false;
+        colorDiv.style.backgroundColor = color;
+        const colorInput = colorDiv.querySelector("input");
+        if (colorInput)
+            colorInput.value = color;
+        this.selectedColorDiv = colorDiv;
+        if (dispatch) {
+            this.dispatchEvent(new CustomEvent("change", {
+                detail: color
+            }));
+        }
+        return true;
+    }
+
+    emitSelectedColor() {
+        if (this.selectedColorDiv) {
+            this.dispatchEvent(new CustomEvent("change", {
+                detail: this.selectedColorDiv.style.backgroundColor
+            }));
+        }
     }
 
     setColors(colors) { // Colors is ["rgb(x,y,z)", ...]
@@ -138,6 +179,10 @@ input {
     }
     getColors() {
         return this.divs.map(d => d.style.backgroundColor);
+    }
+
+    getSelectedColor() {
+        return this.selectedColorDiv?.style?.backgroundColor ?? null;
     }
 }
 
