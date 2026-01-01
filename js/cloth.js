@@ -5,6 +5,7 @@ export const BrushType = {
     Circle: 'Circle',
     Square: 'Square',
     Fill: 'Fill',
+    Erase: 'Erase',
 };
 
 function floodFill(ctx, x, y, erase) {
@@ -342,15 +343,15 @@ class Cloth extends HTMLElement {
         this.mouseDown = true;
 
         this.ctx.fillStyle = this.ctx.strokeStyle = this.color;
-        if (this.color == "transparent")
+        if (this.color == "transparent" || this.brushStyle == BrushType.Erase)
             this.ctx.fillStyle = this.ctx.strokeStyle = "white";
 
         let {current} = this.eventToCanvasCoords(e);
         this.start = current;
-        if (this.color == "transparent")
+        if (this.color == "transparent" || this.brushStyle == BrushType.Erase)
             this.ctx.globalCompositeOperation = "destination-out";
 
-        if (e.ctrlKey) {
+        if (e.ctrlKey || this.brushStyle == BrushType.Fill) {
             floodFill(this.ctx, Math.floor(current[0]), Math.floor(current[1]), this.color == "transparent");
             this.mouseDown = false;
         } else {
@@ -380,7 +381,7 @@ class Cloth extends HTMLElement {
         this.overlayCtx.clearRect(0, 0,
                                   this.overlayCtx.canvas.width, this.overlayCtx.canvas.height);
         this.overlayCtx.beginPath(); // Need to do this after clearing?
-        this.overlayCtx.fillStyle = this.color == "transparent" ? "rgba(0,0,0,0.5)" : this.color;
+        this.overlayCtx.fillStyle = (this.color == "transparent" || this.brushStyle == BrushType.Erase) ? "rgba(0,0,0,0.5)" : this.color;
         if (this.brushStyle == BrushType.Square) {
             let radius = brushSize * brushScale;
             this.overlayCtx.fillRect(Math.floor(current[0]) - radius, Math.floor(current[1]) - radius, radius*2, radius*2);
@@ -390,7 +391,7 @@ class Cloth extends HTMLElement {
         this.overlayCtx.fill();
         
         if (this.mouseDown) {
-            if (this.color == "transparent")
+            if (this.color == "transparent" || this.brushStyle == BrushType.Erase)
                 this.ctx.globalCompositeOperation = "destination-out";
             aliasedLine(this.ctx, previous, current, brushSize * brushScale, this.brushStyle == BrushType.Square);
             this.ctx.globalCompositeOperation = "source-over";

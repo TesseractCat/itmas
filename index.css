@@ -53,18 +53,31 @@ label[disabled] {
 }
 #controls #top-left-panel {
     display: flex;
-    gap: 20px;
+    flex-direction: column;
+    gap: 10px;
 }
+
+#controls #tool-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 6px;
+}
+#controls #tool-row button {
+    border-radius: var(--button-roundness);
+    font-size: 0.9rem;
+}
+#controls #tool-row button.selected {
+    border: 2px solid black;
+}
+
 #controls #buttons {
     display: flex;
     flex-direction: column;
     justify-content: space-evenly;
     gap: 4px;
 }
-#controls #shape {
-    line-height: 1.5rem;
-    font-size: 1.5rem;
-}
+
 #controls #palette {
     align-self: stretch;
     flex-grow: 1;

@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
   </head>
   <body>
     <div id="content">
@@ -17,15 +18,22 @@
       <div id="card">
         <div id="controls">
           <div id="top-left-panel">
-            <div id="buttons">
-              <button id="clear">Clear</button>
-              <button id="save">Save</button>
-              <button id="export">Export</button>
-              <input type="file" id="load"></input>
-              <label for="load">Load</label>
-              <button id="shape" title="Control + click to flood-fill">&#11044;</button>
+            <div style="display: flex; flex-direction: row; gap: 15px;">
+              <div id="buttons">
+                <button id="clear">Clear</button>
+                <button id="save">Save</button>
+                <button id="export">Export</button>
+                <input type="file" id="load"></input>
+                <label for="load">Load</label>
+              </div>
+              <input type="range" min="2" max="10" value="5" id="brush" orient="vertical"></input>
             </div>
-            <input type="range" min="2" max="10" value="5" id="brush" orient="vertical"></input>
+            <div id="tool-row">
+              <button data-tool="Erase" title="Eraser">E</button>
+              <button data-tool="Fill" title="Paint Bucket">B</button>
+              <button data-tool="Square" title="Square Brush">◼</button>
+              <button data-tool="Circle" class="selected" title="Circle Brush">⬤</button>
+            </div>
           </div>
           <select id="examples">
             <option disabled selected value>Examples</option>

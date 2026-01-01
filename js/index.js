@@ -111,20 +111,17 @@ window.addEventListener('load', () => {
         for (let cloth of cloths)
             cloth.brushSize = parseInt(e.target.value)/parseInt(e.target.getAttribute("max"));
     });
-    document.getElementById("shape").addEventListener("click", (e) => {
-        if (e.target.textContent == "⬤") {
-            e.target.textContent = "⯀";
-        } else {
-            e.target.textContent = "⬤";
-        }
-        for (let cloth of cloths) {
-            if (cloth.brushStyle == BrushType.Circle) {
-                cloth.brushStyle = BrushType.Square;
-            } else {
-                cloth.brushStyle = BrushType.Circle;
+    [...document.querySelectorAll("#tool-row button[data-tool]")].forEach((button) => {
+        button.addEventListener("click", (e) => {
+            document.querySelector("#tool-row button.selected")?.classList.remove("selected");
+            button.classList.add("selected");
+            const tool = button.getAttribute("data-tool");
+            for (let cloth of cloths) {
+                cloth.brushStyle = tool;
             }
-        }
+        });
     });
+
     document.getElementById("clear").addEventListener("click", () => {
         if (confirm("Are you sure you want to clear this layer?")) {
             for (let cloth of cloths)

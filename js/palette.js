@@ -9,8 +9,7 @@ class Palette extends HTMLElement {
 
         this.attachShadow({ mode: "open" });
 
-        const colors = [
-            "transparent",
+const colors = [
             "#dde4e8",
             "#ffc97a",
             "#8dc196",
@@ -37,35 +36,32 @@ class Palette extends HTMLElement {
             colorDiv.setAttribute("for", inputId);
             colorDiv.style.backgroundColor = color;
             colorDiv.classList.add("color");
-            if (color == "transparent")
-                colorDiv.classList.add("transparent");
 
-            const paletteIndex = color == "transparent" ? -1 : this.divs.length;
+            const paletteIndex = this.divs.length;
 
             colorDiv.addEventListener("click", (e) => {
                 this.setSelection(colorDiv, paletteIndex);
                 e.preventDefault();
             });
 
-            if (color != "transparent") {
-                colorDiv.append(colorInput);
-                this.divs.push(colorDiv);
+            colorDiv.append(colorInput);
+            this.divs.push(colorDiv);
 
-                colorInput.addEventListener("change", (e) => {
-                    colorDiv.style.backgroundColor = e.target.value;
-                    this.setSelection(colorDiv, paletteIndex);
-                });
+            colorInput.addEventListener("change", (e) => {
+                colorDiv.style.backgroundColor = e.target.value;
+                this.setSelection(colorDiv, paletteIndex);
+            });
 
-                colorDiv.addEventListener("contextmenu", (e) => {
-                    this.setSelection(colorDiv, paletteIndex);
-                    colorInput.dispatchEvent(new MouseEvent("click"));
-                    e.preventDefault();
-                    return false;
-                }, false);
-            }
+            colorDiv.addEventListener("contextmenu", (e) => {
+                this.setSelection(colorDiv, paletteIndex);
+                colorInput.dispatchEvent(new MouseEvent("click"));
+                e.preventDefault();
+                return false;
+            }, false);
 
             wrapper.append(colorDiv);
         });
+
 
         const style = document.createElement("style");
         style.textContent = `
