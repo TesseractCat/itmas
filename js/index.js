@@ -315,22 +315,6 @@ void main() {
         });
     });
 
-    // document.addEventListener("keydown", async (e) => {
-    //     function rgbToArray(rgb) {
-    //         return [...rgb.split("(")[1].split(")")[0].split(",").map(x => parseInt(x)), 255];
-    //     }
-    //     if (e.key == " ") {
-    //         for (let cloth of cloths) {
-    //             for (let i = 0; i < 4; i++) {
-    //                 await cloth.loadLayer(i);
-    //                 cloth.palettize(
-    //                     [...palette.getColors().map(rgbToArray), [0,0,0,0]]
-    //                 );
-    //             }
-    //         }
-    //     }
-    // });
-
     // Create volume box
     const volumeGeometry = new BoxGeometry(1, 1, 1);
     const volumeMaterial = new VolumeMaterial(renderer, {
