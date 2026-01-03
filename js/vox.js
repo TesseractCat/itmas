@@ -35,6 +35,17 @@ export class MagicaVoxel {
             point[0], point[1], point[2], (index + 1)
         );
     }
+    getVoxel(point) {
+        for (let i = 0; i < this.voxels.length; i += 4) {
+            if (this.voxels[i] === point[0] &&
+                this.voxels[i + 1] === point[1] &&
+                this.voxels[i + 2] === point[2]) {
+                let colorIndex = this.voxels[i + 3] - 1;
+                return this.palette[colorIndex];
+            }
+        }
+        return null;
+    }
     toBlob() {
         let main = this.MAIN();
         let header = new Uint8Array(8);

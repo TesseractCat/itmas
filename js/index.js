@@ -24,6 +24,9 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 
+import ExportVoxWorker from './exportVox.worker.js';
+import ExportMCWorker from './exportMC.worker.js';
+
 
 // TODO:
 //  - Favicon/meta tags
@@ -35,7 +38,6 @@ import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 //      - Light preview of CSG on cloth
 //      - Undo/Redo
 //      - Straight line tool
-//      - Color picker
 //  - Layers:
 //      - Preview
 //      - Hide/show
@@ -209,12 +211,23 @@ window.addEventListener('load', () => {
         let file = await (await fetch(`./models/${e.target.value}.zip`)).blob();
         await loadZip(file);
     });
-    document.getElementById("export").addEventListener("click", async () => {
-        const buttons = [...document.querySelectorAll("#buttons *")];
+
+    function disableButtons() {
+        const buttons = [...document.querySelectorAll("#buttons *")].filter(elem => elem.tagName === 'BUTTON');
         buttons.forEach((elem) => elem.setAttribute('disabled',''));
         document.documentElement.style.setProperty("--progress", "0%");
+        return buttons;
+    }
+    function enableButtons(buttons) {
+        document.documentElement.style.setProperty("--progress", "0%");
+        buttons.forEach((elem) => elem.removeAttribute('disabled'));
+    }
 
-        const worker = new Worker("/js/exportWorker.js", { type: "module" });
+    document.getElementById("export").addEventListener("click", async () => {
+        const buttons = disableButtons();
+
+        const worker = ExportVoxWorker();
+
         worker.postMessage({ type: "init", totalLayers: 256 });
 
         worker.addEventListener("message", (event) => {
@@ -225,17 +238,16 @@ window.addEventListener('load', () => {
                 document.documentElement.style.setProperty("--progress", `${message.percent}%`);
             } else if (message.type === "done") {
                 saveAs(message.blob, message.filename);
-                document.documentElement.style.setProperty("--progress", "0%");
-                buttons.forEach((elem) => elem.removeAttribute('disabled'));
+                enableButtons(buttons);
                 worker.terminate();
             }
         });
         worker.addEventListener("error", (event) => {
             console.error("export worker error", event);
-            document.documentElement.style.setProperty("--progress", "0%");
-            buttons.forEach((elem) => elem.removeAttribute('disabled'));
+            enableButtons(buttons);
             worker.terminate();
         });
+
 
         const gpuCompute = new GPUComputationRenderer(256, 256, renderer);
         const test = gpuCompute.createShaderMaterial(`
@@ -295,6 +307,90 @@ void main() {
 
         worker.postMessage({ type: "finalize", filename: "export.vox" });
     });
+
+    document.getElementById("export-mc").addEventListener("click", async () => {
+        const buttons = disableButtons();
+
+        const worker = ExportMCWorker();
+        worker.postMessage({ type: "init", totalLayers: 256 });
+
+        worker.addEventListener("message", (event) => {
+            const message = event.data;
+            if (!message)
+                return;
+            if (message.type === "progress") {
+                document.documentElement.style.setProperty("--progress", `${message.percent}%`);
+            } else if (message.type === "done") {
+                saveAs(message.blob, message.filename ?? "export.gltf");
+                enableButtons(buttons);
+                worker.terminate();
+            }
+        });
+        worker.addEventListener("error", (event) => {
+            console.error("export MC worker error", event);
+            enableButtons(buttons);
+            worker.terminate();
+        });
+
+        const gpuCompute = new GPUComputationRenderer(256, 256, renderer);
+        const test = gpuCompute.createShaderMaterial(`
+uniform sampler2D frontViews[4];
+uniform sampler2D sideViews[4];
+uniform sampler2D topViews[4];
+uniform int layer;
+
+${sampleVolumeSnippet}
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / resolution.xy;
+
+    vec3 p = vec3(uv.x, float(layer)/255.0, uv.y);
+    gl_FragColor = sampleVolume(p);
+}
+`, {
+    layer: { value: null },
+    frontViews: { type: "tv", value: null },
+    sideViews: { type: "tv", value: null },
+    topViews: { type: "tv", value: null },
+});
+        test.uniforms.topViews.value = cloths[0].textures;
+        test.uniforms.frontViews.value = cloths[1].textures;
+        test.uniforms.sideViews.value = cloths[2].textures;
+
+        const error = gpuCompute.init();
+        if (error !== null)
+            console.error(error);
+
+        let buffer = new Float32Array(256 * 256 * 4);
+        let renderTarget = gpuCompute.createRenderTarget();
+
+        for (let layer = 0; layer < 256; layer++) {
+            test.uniforms.layer.value = layer;
+
+            gpuCompute.doRenderTarget(test, renderTarget);
+
+            renderer.readRenderTargetPixels(renderTarget, 0, 0, 256, 256, buffer);
+
+            let pixels = new Uint8ClampedArray(256 * 256 * 4);
+            for (let i = 0; i < buffer.length/4; i++) {
+                pixels[(i * 4) + 0] = buffer[(i * 4) + 0] * 255;
+                pixels[(i * 4) + 1] = buffer[(i * 4) + 1] * 255;
+                pixels[(i * 4) + 2] = buffer[(i * 4) + 2] * 255;
+                pixels[(i * 4) + 3] = buffer[(i * 4) + 3] * 255;
+            }
+
+            worker.postMessage({
+                type: "layer",
+                layer,
+                width: 256,
+                height: 256,
+                pixels: pixels.buffer
+            }, [pixels.buffer]);
+        }
+
+        worker.postMessage({ type: "finalize", filename: "export.gltf" });
+    });
+
 
 
     [...document.getElementsByTagName("itmas-layer")].forEach((layerTab) => {
