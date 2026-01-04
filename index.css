@@ -58,17 +58,25 @@ label[disabled] {
 }
 
 #controls #tool-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
+    display: flex;
+    justify-content: space-between;
     gap: 6px;
+    align-items: center;
 }
 #controls #tool-row button {
     border-radius: var(--button-roundness);
     font-size: 0.9rem;
+    padding: 4px;
+    display: flex;
+}
+
+#tool-row button img {
+    width: 16px;
+    height: 16px;
 }
 #controls #tool-row button.selected {
     border: 2px solid black;
+    background: linear-gradient(-180deg, #FFD 0%, #EEC 100%);
 }
 
 #controls #buttons {
