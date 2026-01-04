@@ -299,6 +299,7 @@ class ColorPicker extends HTMLElement {
     font-size: 0.95rem;
     text-transform: uppercase;
     text-align: center;
+    width: 0px;
 }
 `;
 

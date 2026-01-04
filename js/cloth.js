@@ -352,7 +352,7 @@ class Cloth extends HTMLElement {
             this.ctx.globalCompositeOperation = "destination-out";
 
         if (e.ctrlKey || this.brushStyle == BrushType.Fill) {
-            floodFill(this.ctx, Math.floor(current[0]), Math.floor(current[1]), this.color == "transparent");
+            floodFill(this.ctx, Math.floor(current[0]), Math.floor(current[1]), this.color == "transparent" || this.brushStyle == BrushType.Erase);
             this.mouseDown = false;
         } else {
             let brushSize = e.pointerType == "pen" ? Math.max(e.pressure, 0.2) : this.brushSize;
