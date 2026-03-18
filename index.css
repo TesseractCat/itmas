@@ -25,7 +25,7 @@ body {
 input[type=file] {
     display: none;
 }
-button, label, select {
+button, select {
     border-radius: var(--button-roundness);
     background: linear-gradient(-180deg, #FFF 0%, #EEE 100%);
     border: 1px solid black;
@@ -35,7 +35,7 @@ button, label, select {
     font-size: 1.05em;
     font-weight: 500;
 }
-button:hover, label:hover, select:hover {
+button:hover, select:hover {
     background: linear-gradient(-180deg, #F5F5F5 0%, #E5E5E5 100%);
 }
 label[disabled] {
@@ -47,9 +47,6 @@ label[disabled] {
     flex-direction: column;
     gap: 10px;
     align-items: center;
-}
-#controls #examples {
-    width: 100%;
 }
 #controls #top-left-panel {
     display: flex;
@@ -264,4 +261,160 @@ label[disabled] {
 }
 #grid #three-canvas:active {
     cursor: grabbing;
+}
+
+dialog {
+    border: none;
+    border-radius: var(--roundness);
+    padding: 0;
+    width: min(720px, 90vw);
+    box-shadow: 10px 10px var(--shadow-color);
+    background: linear-gradient(-180deg, #EEE 0%, #DEDEDE 100%);
+    color: var(--text-color);
+}
+
+dialog::backdrop {
+    background: rgba(0,0,0,0.35);
+}
+
+dialog h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+dialog header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+dialog h3 {
+    margin: 0 0 8px 0;
+    font-size: 1.1rem;
+}
+
+dialog .dialog-close {
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+dialog section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+dialog form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.file-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+.file-grid-card {
+    border: 1px solid rgba(0,0,0,0.4);
+    border-radius: var(--roundness);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    background: rgba(255,255,255,0.7);
+    cursor: pointer;
+    transition: transform 0.08s, box-shadow 0.08s;
+}
+
+.file-grid-card:hover,
+.file-grid-card:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 3px 3px var(--shadow-color);
+    outline: none;
+}
+
+.file-grid-card img {
+    width: 100%;
+    height: 100px;
+    object-fit: contain;
+    border-radius: var(--button-roundness);
+    background: white;
+    border: 1px solid gray;
+}
+
+.file-grid-card span {
+    font-size: 0.95rem;
+    text-align: center;
+}
+
+.file-grid-card button {
+    font-size: 0.9rem;
+}
+
+.empty-state {
+    margin: 0;
+    font-size: 0.95rem;
+    color: rgba(0,0,0,0.6);
+}
+
+dialog #file-section .file-name {
+    font-size: 0.9rem;
+    color: rgba(0,0,0,0.7);
+}
+
+#save-dialog .save-dialog-body {
+    display: grid;
+    grid-template-columns: minmax(140px, 200px) 1fr;
+    gap: 16px;
+    align-items: center;
+}
+
+#save-dialog .save-preview {
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(0,0,0,0.2);
+    border-radius: var(--roundness);
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#save-dialog .save-preview img {
+    width: 100%;
+    height: 140px;
+    object-fit: contain;
+    border-radius: var(--button-roundness);
+    background: white;
+}
+
+#save-dialog .save-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#save-dialog .save-fields input {
+    padding: 6px 8px;
+    border-radius: var(--button-roundness);
+    border: 1px solid rgba(0,0,0,0.4);
+    font-size: 1rem;
+}
+
+#save-dialog .help-text {
+    margin: 0;
+    font-size: 0.9rem;
+    color: rgba(0,0,0,0.6);
 }

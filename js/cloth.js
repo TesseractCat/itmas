@@ -89,6 +89,9 @@ class UndoManager {
         if (this.blobs.length == 0) return null;
         return this.blobs[this.blobs.length - 1];
     }
+    currentBlob() {
+        return this.blobs[this.pointer];
+    }
     async push(ctx) {
         const blob = await new Promise(resolve => ctx.canvas.toBlob(resolve));
         this.pointer++;

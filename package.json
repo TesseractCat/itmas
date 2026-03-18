@@ -16,6 +16,7 @@
     "esbuild-plugin-inline-worker": "^0.1.1"
   },
   "dependencies": {
+    "dexie": "^4.3.0",
     "jszip": "^3.10.1",
     "three": "^0.145.0"
   }

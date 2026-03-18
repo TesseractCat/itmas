@@ -18,6 +18,7 @@ import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer
 import { VolumeMaterial, sampleVolumeSnippet } from './volume';
 import { jumpFlood } from './jumpflood';
 import JSZip from 'jszip';
+import Dexie from 'dexie';
 import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
@@ -85,6 +86,44 @@ window.addEventListener('load', () => {
     camera.position.x = 1;
     controls.update();
 
+    // Create bounding box
+    const dashedMaterial = new LineMaterial({
+        color: "#aaa",
+        transparent: true,
+        opacity: 0.1,
+        linewidth: 0.01,
+    });
+    const points = [
+        0.5, 0.5, 0.5,
+        -0.5, 0.5, 0.5,
+        0.5, 0.5, 0.5,
+        0.5, -0.5, 0.5,
+        -0.5, -0.5, 0.5,
+        0.5, -0.5, 0.5,
+        -0.5, -0.5, 0.5,
+        -0.5, 0.5, 0.5,
+        0.5, 0.5, -0.5,
+        -0.5, 0.5, -0.5,
+        0.5, 0.5, -0.5,
+        0.5, -0.5, -0.5,
+        -0.5, -0.5, -0.5,
+        0.5, -0.5, -0.5,
+        -0.5, -0.5, -0.5,
+        -0.5, 0.5, -0.5,
+        0.5, 0.5, 0.5,
+        0.5, 0.5, -0.5,
+        -0.5, 0.5, 0.5,
+        -0.5, 0.5, -0.5,
+        0.5, -0.5, 0.5,
+        0.5, -0.5, -0.5,
+        -0.5, -0.5, 0.5,
+        -0.5, -0.5, -0.5,
+    ];
+    const boundingGeometry = new LineSegmentsGeometry();
+    boundingGeometry.setPositions(points);
+    const boundingBox = new LineSegments2( boundingGeometry, dashedMaterial );
+    scene.add(boundingBox);
+
     function render() {
         requestAnimationFrame(render);
         
@@ -130,6 +169,12 @@ window.addEventListener('load', () => {
                 cloth.clear();
         }
     });
+
+    cloths.forEach((cloth) => {
+        cloth.addEventListener("change", () => {
+            hasUnsavedChanges = true;
+        });
+    });
     document.getElementById("expand").addEventListener("click", () => {
         for (let cloth of cloths)
             cloth.style.display = cloth.style.display == "none" ? "block" : "none";
@@ -137,35 +182,157 @@ window.addEventListener('load', () => {
         grid.style.display = grid.style.display == "block" ? "grid" : "block";
     });
     
-    document.getElementById("save").addEventListener("click", async () => {
-        let zip = new JSZip();
+    const exampleModels = [
+        { id: "truck", label: "Truck" },
+        { id: "witch", label: "Witch" },
+        { id: "skeleton", label: "Skeleton" },
+        { id: "cat", label: "Cat" },
+        { id: "frog", label: "Frog" },
+        { id: "burger", label: "Burger" },
+        { id: "icecream", label: "Ice Cream" },
+        { id: "sedan", label: "Sedan" }
+    ];
+    const savedModelsDb = new Dexie("itmas");
+    savedModelsDb.version(1).stores({
+        savedModels: "name, updatedAtEpoch"
+    });
+    const savedModelsTable = savedModelsDb.table("savedModels");
+    let savedModelThumbnailUrls = [];
+    const exampleZipCache = new Map();
+    const exampleThumbnailCache = new Map();
+    const emptyThumbnail = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+    let pendingSaveData = null;
+    let currentFileName = null;
+    let hasUnsavedChanges = false;
 
-        let metadata = {};
-        metadata["version"] = 1;
-        metadata["palette"] = palette.getColors();
-        zip.file("metadata.json",
-                 new Blob([JSON.stringify(metadata)],
-                          {type: "application/json"})
-                );
+    function blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+        });
+    }
 
-        renderer.render(scene, camera); // Need to do this before taking a 'screenshot'
-        const previewBlob = await new Promise(resolve => document.getElementById("three-canvas").toBlob(resolve));
-        console.log(previewBlob);
-        zip.file("thumbnail.png", previewBlob);
+    async function getExampleZip(modelId) {
+        if (exampleZipCache.has(modelId))
+            return exampleZipCache.get(modelId);
+        const file = await (await fetch(`./models/${modelId}.zip`)).blob();
+        exampleZipCache.set(modelId, file);
+        return file;
+    }
 
-        for (const cloth of cloths) {
-            let folder = zip.folder(cloth.id);
+    async function getExampleThumbnail(modelId) {
+        if (exampleThumbnailCache.has(modelId))
+            return exampleThumbnailCache.get(modelId);
+        try {
+            const zipBlob = await getExampleZip(modelId);
+            let zip = new JSZip();
+            await zip.loadAsync(zipBlob);
+            const thumbnailFile = zip.file("thumbnail.png");
+            if (!thumbnailFile)
+                return emptyThumbnail;
+            const thumbBlob = await thumbnailFile.async("blob");
+            const thumbnailUrl = await blobToDataUrl(thumbBlob);
+            exampleThumbnailCache.set(modelId, thumbnailUrl);
+            return thumbnailUrl;
+        } catch (error) {
+            console.warn("Unable to load example thumbnail", error);
+            return emptyThumbnail;
+        }
+    }
 
-            for (const [i, layer] of (await cloth.serialize()).entries()) {
-                if (layer.latestBlob() != null)
-                    folder.file(`layer-${i}.png`, layer);
-            }
+    async function getSavedModels() {
+        try {
+            return await savedModelsTable.orderBy("updatedAtEpoch").reverse().limit(24).toArray();
+        } catch (error) {
+            console.warn("Unable to read saved models", error);
+            return [];
+        }
+    }
+
+    async function pruneSavedModels() {
+        const models = await savedModelsTable.orderBy("updatedAtEpoch").reverse().toArray();
+        const toRemove = models.slice(24);
+        await Promise.all(toRemove.map((model) => savedModelsTable.delete(model.name)));
+    }
+
+    async function saveModelToLibrary(model) {
+        await savedModelsTable.put(model);
+        await pruneSavedModels();
+    }
+
+    function clearSavedModelThumbnails() {
+        savedModelThumbnailUrls.forEach((url) => URL.revokeObjectURL(url));
+        savedModelThumbnailUrls = [];
+    }
+
+    async function commitSave({ name, blob, previewBlob }) {
+        const normalizedName = name.trim() || "Untitled";
+        const filename = `${normalizedName.replace(/\s+/g, "-").toLowerCase()}.zip`;
+        const updatedAtEpoch = Date.now();
+        const updatedAt = new Date(updatedAtEpoch).toLocaleString();
+        await saveModelToLibrary({
+            name: normalizedName,
+            filename,
+            updatedAt,
+            updatedAtEpoch,
+            thumbnailBlob: previewBlob ?? null,
+            dataBlob: blob
+        });
+        await renderSavedModels();
+        hasUnsavedChanges = false;
+    }
+
+    function createCard({ title, subtitle, thumbnail, onClick, actions = [] }) {
+        const card = document.createElement("div");
+        card.className = "file-grid-card";
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-label", title);
+        card.tabIndex = 0;
+
+        const img = document.createElement("img");
+        img.alt = title;
+        img.src = thumbnail || emptyThumbnail;
+        card.appendChild(img);
+
+        const label = document.createElement("span");
+        label.textContent = title;
+        card.appendChild(label);
+
+        if (subtitle) {
+            const sub = document.createElement("span");
+            sub.textContent = subtitle;
+            sub.style.fontSize = "0.8rem";
+            sub.style.color = "rgba(0,0,0,0.6)";
+            card.appendChild(sub);
         }
 
-        zip.generateAsync({type:"blob"}).then(async (blob) => {
-            saveAs(blob, "model.zip");
-        });
-    });
+        if (actions.length) {
+            const actionsWrap = document.createElement("div");
+            actionsWrap.style.display = "flex";
+            actionsWrap.style.gap = "6px";
+            actionsWrap.style.flexWrap = "wrap";
+            actionsWrap.style.justifyContent = "center";
+            actions.forEach((action) => {
+                actionsWrap.appendChild(action);
+            });
+            card.appendChild(actionsWrap);
+        }
+
+        if (onClick) {
+            card.addEventListener("click", onClick);
+            card.addEventListener("keydown", (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onClick();
+                }
+            });
+        }
+
+        return card;
+    }
+
     async function loadZip(file) {
         let zip = new JSZip();
         await zip.loadAsync(file);
@@ -191,25 +358,197 @@ window.addEventListener('load', () => {
             let metadata = JSON.parse(await metadataFile.async("string"));
 
             if ("palette" in metadata) {
-                palette.setColors(metadata["palette"]);
-                palette.emitSelectedColor();
+                paletteElem.setColors(metadata["palette"]);
+                paletteElem.emitSelectedColor();
             }
         }
 
         document.querySelector("itmas-layer.selected")?.classList.remove("selected");
         document.querySelector("itmas-layer[layer='0']")?.classList.add("selected");
+        hasUnsavedChanges = false;
     }
-    document.getElementById("load").addEventListener("change", async (e)  => {
+
+    async function loadZipAndCloseDialog(file, filename = null) {
+        await loadZip(file);
+        if (filename)
+            currentFileName = filename;
+        openDialog.close();
+    }
+
+    function confirmDiscardIfDirty() {
+        if (!hasUnsavedChanges)
+            return true;
+        return confirm("You have unsaved changes. Continue and lose them?");
+    }
+
+    function renderExamples() {
+        examplesGrid.innerHTML = "";
+        exampleModels.forEach((model) => {
+            const card = createCard({
+                title: model.label,
+                thumbnail: emptyThumbnail,
+                onClick: async () => {
+                    if (!confirmDiscardIfDirty())
+                        return;
+                    const file = await getExampleZip(model.id);
+                    await loadZipAndCloseDialog(file, model.label);
+                }
+            });
+            examplesGrid.appendChild(card);
+
+            getExampleThumbnail(model.id).then((thumbnailUrl) => {
+                const img = card.querySelector("img");
+                if (img)
+                    img.src = thumbnailUrl;
+            });
+        });
+    }
+
+    async function renderSavedModels() {
+        savedGrid.innerHTML = "";
+        clearSavedModelThumbnails();
+        const models = await getSavedModels();
+        savedEmpty.style.display = models.length ? "none" : "block";
+
+        models.forEach((model) => {
+            const deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.textContent = "Remove";
+            deleteButton.addEventListener("click", async (event) => {
+                event.stopPropagation();
+                const confirmed = confirm(`Remove "${model.name}" from saved models?`);
+                if (!confirmed)
+                    return;
+                await savedModelsTable.delete(model.name);
+                await renderSavedModels();
+            });
+
+            const exportButton = document.createElement("button");
+            exportButton.type = "button";
+            exportButton.textContent = "Download";
+            exportButton.addEventListener("click", (event) => {
+                event.stopPropagation();
+                const blob = model.dataBlob;
+                if (!blob)
+                    return;
+                saveAs(blob, model.filename ?? "model.zip");
+            });
+
+            const thumbnailUrl = model.thumbnailBlob ? URL.createObjectURL(model.thumbnailBlob) : emptyThumbnail;
+            if (model.thumbnailBlob)
+                savedModelThumbnailUrls.push(thumbnailUrl);
+
+            const card = createCard({
+                title: model.name,
+                subtitle: model.updatedAt,
+                thumbnail: thumbnailUrl,
+                onClick: async () => {
+                    if (!confirmDiscardIfDirty())
+                        return;
+                    const blob = model.dataBlob;
+                    if (!blob)
+                        return;
+                    await loadZipAndCloseDialog(blob, model.name);
+                },
+                actions: [exportButton, deleteButton]
+            });
+            savedGrid.appendChild(card);
+        });
+    }
+
+    const openDialog = document.getElementById("open-dialog");
+    const openDialogButton = document.getElementById("open-dialog-button");
+    const examplesGrid = document.getElementById("examples-grid");
+    const savedGrid = document.getElementById("saved-grid");
+    const savedEmpty = document.getElementById("saved-empty");
+    const loadInput = document.getElementById("load");
+    const loadFileButton = document.getElementById("load-file-button");
+    const loadFileName = document.getElementById("load-file-name");
+    const saveDialog = document.getElementById("save-dialog");
+    const saveDialogName = document.getElementById("save-name");
+    const saveDialogThumbnail = document.getElementById("save-thumbnail");
+
+    openDialogButton.addEventListener("click", async () => {
+        renderExamples();
+        await renderSavedModels();
+        openDialog.showModal();
+    });
+
+    openDialog.addEventListener("close", () => {
+        loadInput.value = "";
+        loadFileName.textContent = "No file selected";
+    });
+
+    loadFileButton.addEventListener("click", () => {
+        loadInput.click();
+    });
+
+    loadInput.addEventListener("change", async (e)  => {
         const files = e.target.files;
         if (files.length == 0)
             return;
         const file = files[0];
-
-        await loadZip(file);
+        loadFileName.textContent = file.name;
+        if (!confirmDiscardIfDirty()) {
+            loadInput.value = "";
+            return;
+        }
+        await loadZipAndCloseDialog(file, file.name.replace(/\.zip$/i, ""));
     });
-    document.getElementById("examples").addEventListener("change", async (e) => {
-        let file = await (await fetch(`./models/${e.target.value}.zip`)).blob();
-        await loadZip(file);
+
+    saveDialog.addEventListener("close", () => {
+        if (saveDialog.returnValue == "cancel" || !pendingSaveData) {
+            pendingSaveData = null;
+            return;
+        }
+        const { blob, previewBlob } = pendingSaveData;
+        commitSave({ name: saveDialogName.value, blob, previewBlob }).finally(() => {
+            currentFileName = saveDialogName.value;
+            pendingSaveData = null;
+        });
+    });
+
+    document.getElementById("save").addEventListener("click", async () => {
+        let zip = new JSZip();
+
+        let metadata = {};
+        metadata["version"] = 1;
+        metadata["palette"] = paletteElem.getColors();
+        zip.file("metadata.json",
+                 new Blob([JSON.stringify(metadata)],
+                          {type: "application/json"})
+                );
+
+        boundingBox.visible = false;
+        renderer.render(scene, camera); // Need to do this before taking a 'screenshot'
+        boundingBox.visible = true;
+        const previewBlob = await new Promise(resolve => document.getElementById("three-canvas").toBlob(resolve));
+        zip.file("thumbnail.png", previewBlob);
+
+        for (const cloth of cloths) {
+            let folder = zip.folder(cloth.id);
+
+            for (const [i, layer] of (await cloth.serialize()).entries()) {
+                if (layer.currentBlob() != null)
+                    folder.file(`layer-${i}.png`, layer.currentBlob());
+            }
+        }
+
+        zip.generateAsync({type:"blob"}).then(async (blob) => {
+            if (currentFileName != null) {
+                await commitSave({ name: currentFileName, blob, previewBlob });
+                return;
+            }
+
+            const thumbnailUrl = previewBlob ? await blobToDataUrl(previewBlob) : emptyThumbnail;
+            pendingSaveData = { blob, previewBlob };
+            saveDialogThumbnail.src = thumbnailUrl || emptyThumbnail;
+            saveDialogName.value = "";
+            saveDialog.showModal();
+            setTimeout(() => saveDialogName.focus(), 0);
+        }).catch((error) => {
+            console.error("Save failed", error);
+        });
     });
 
     function disableButtons() {
@@ -469,42 +808,4 @@ void main() {
             cursor.visible = false;
         });
     }
-
-    // Create bounding box
-    const dashedMaterial = new LineMaterial({
-        color: "#aaa",
-        transparent: true,
-        opacity: 0.1,
-        linewidth: 0.01,
-    });
-    const points = [
-        0.5, 0.5, 0.5,
-        -0.5, 0.5, 0.5,
-        0.5, 0.5, 0.5,
-        0.5, -0.5, 0.5,
-        -0.5, -0.5, 0.5,
-        0.5, -0.5, 0.5,
-        -0.5, -0.5, 0.5,
-        -0.5, 0.5, 0.5,
-        0.5, 0.5, -0.5,
-        -0.5, 0.5, -0.5,
-        0.5, 0.5, -0.5,
-        0.5, -0.5, -0.5,
-        -0.5, -0.5, -0.5,
-        0.5, -0.5, -0.5,
-        -0.5, -0.5, -0.5,
-        -0.5, 0.5, -0.5,
-        0.5, 0.5, 0.5,
-        0.5, 0.5, -0.5,
-        -0.5, 0.5, 0.5,
-        -0.5, 0.5, -0.5,
-        0.5, -0.5, 0.5,
-        0.5, -0.5, -0.5,
-        -0.5, -0.5, 0.5,
-        -0.5, -0.5, -0.5,
-    ];
-    const boundingGeometry = new LineSegmentsGeometry();
-    boundingGeometry.setPositions(points);
-    const line = new LineSegments2( boundingGeometry, dashedMaterial );
-    scene.add(line);
 });
