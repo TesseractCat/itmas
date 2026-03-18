@@ -17,7 +17,7 @@ import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer
 
 import { VolumeMaterial, sampleVolumeSnippet } from './volume';
 import { jumpFlood } from './jumpflood';
-import JSZip from 'JSZip';
+import JSZip from 'jszip';
 import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';

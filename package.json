@@ -2,7 +2,7 @@
   "name": "itmas",
   "version": "0.1.0",
   "description": "3 View Sketch Modelling Software",
-  "main": "index.js",
+  "main": "electron.js",
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch"
@@ -10,6 +10,8 @@
   "author": "tesseractcat",
   "license": "MIT",
   "devDependencies": {
+    "@electron/packager": "^19.1.0",
+    "electron": "^41.0.3",
     "esbuild": "^0.15.10",
     "esbuild-plugin-inline-worker": "^0.1.1"
   },
