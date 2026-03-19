@@ -181,6 +181,9 @@ window.addEventListener('load', () => {
         let grid = document.getElementById("grid");
         grid.style.display = grid.style.display == "block" ? "grid" : "block";
     });
+    document.getElementById("bounding-box").addEventListener("click", () => {
+        boundingBox.visible = !boundingBox.visible;
+    });
     
     const exampleModels = [
         { id: "truck", label: "Truck" },
@@ -269,7 +272,7 @@ window.addEventListener('load', () => {
 
     async function commitSave({ name, blob, previewBlob }) {
         const normalizedName = name.trim() || "Untitled";
-        const filename = `${normalizedName.replace(/\s+/g, "-").toLowerCase()}.zip`;
+        const filename = `${normalizedName.replace(/\s+/g, "-").toLowerCase()}.csz`;
         const updatedAtEpoch = Date.now();
         const updatedAt = new Date(updatedAtEpoch).toLocaleString();
         await saveModelToLibrary({
@@ -519,9 +522,10 @@ window.addEventListener('load', () => {
                           {type: "application/json"})
                 );
 
+        let boundingBoxVisibility = boundingBox.visible;
         boundingBox.visible = false;
         renderer.render(scene, camera); // Need to do this before taking a 'screenshot'
-        boundingBox.visible = true;
+        boundingBox.visible = boundingBoxVisibility;
         const previewBlob = await new Promise(resolve => document.getElementById("three-canvas").toBlob(resolve));
         zip.file("thumbnail.png", previewBlob);
 

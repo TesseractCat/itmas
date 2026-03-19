@@ -189,6 +189,22 @@ label[disabled] {
     transform: translate(-50%, -50%);
 }
 
+#file-name {
+    position: absolute;
+    margin: 0px;
+    margin-left: 25px;
+    top: -25px;
+    background-color: var(--tab-color);
+    height: 25px;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-radius: var(--roundness) var(--roundness) 0px 0px;
+    box-shadow: 10px 10px var(--shadow-color);
+    z-index: -1;
+}
+
 #picker-panel {
     align-self: flex-end;
     display: flex;
@@ -237,23 +253,26 @@ label[disabled] {
 #grid #three {
     position: relative;
 }
-#grid #expand {
+#three-buttons {
     position: absolute;
+    display: flex;
     top: 10px;
     right: 10px;
-    width: 2.5rem;
     height: 2.5rem;
-    text-align: center;
-    line-height: 2.5rem;
-    font-size: 2rem;
-    color: rgba(0,0,0,0.5);
-    cursor: pointer;
 
     transition: font-size 0.1s, color 0.1s;
 }
-#grid #expand:hover {
+#three-buttons span {
+    height: 100%;
+    aspect-ratio: 1 / 1;
+    opacity: 0.2;
+    cursor: pointer;
+
+    transition: font-size 0.1s, opacity 0.1s;
+}
+#three-buttons span:hover {
     font-size: 2.2rem;
-    color: rgba(0,0,0,0.7);
+    opacity: 0.5;
 }
 #grid #three-canvas {
     cursor: grab;

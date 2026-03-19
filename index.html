@@ -15,41 +15,50 @@
       <div id="picker-panel">
         <itmas-picker id="picker"></itmas-picker>
       </div>
-      <div id="card">
-        <div id="controls">
-          <div id="top-left-panel">
-            <div style="display: flex; flex-direction: row; gap: 15px;">
-              <div id="buttons">
-                <button id="clear">Clear</button>
-                <button id="save">Save</button>
-                <button id="open-dialog-button" type="button">Open</button>
-                <button id="export">Export</button>
-                <button id="export-mc">Export (MC)</button>
-              </div>
-              <input type="range" min="2" max="10" value="5" id="brush" orient="vertical"></input>
-            </div>
-            <div id="tool-row">
-                 <button data-tool="Erase" title="Eraser"><img src="icons/eraser-solid-full.svg" alt="Eraser"></button>
-                 <button data-tool="Fill" title="Paint Bucket"><img src="icons/fill-solid-full.svg" alt="Paint Bucket"></button>
-                 <button data-tool="Square" title="Square Brush"><img src="icons/square-solid-full.svg" alt="Square Brush"></button>
-                 <button data-tool="Circle" class="selected" title="Circle Brush"><img src="icons/circle-solid-full.svg" alt="Circle Brush"></button>
-            </div>
-          </div>
-          <itmas-palette id="palette"></itmas-palette>
+      <div>
+        <div id="file-name">
+          <p>Untitled</p>
         </div>
-        <div id="grid">
-          <itmas-cloth id="side-view">
-            <span slot="title">Side View</span>
-          </itmas-cloth>
-          <itmas-cloth id="top-view">
-            <span slot="title">Top View</span>
-          </itmas-cloth>
-          <itmas-cloth id="front-view">
-            <span slot="title">Front View</span>
-          </itmas-cloth>
-          <div id="three">
-            <canvas id="three-canvas"></canvas>
-            <span id="expand">&#x26F6;</span>
+        <div id="card">
+          <div id="controls">
+            <div id="top-left-panel">
+              <div style="display: flex; flex-direction: row; gap: 15px;">
+                <div id="buttons">
+                  <button id="new">New</button>
+                  <button id="clear">Clear</button>
+                  <button id="save">Save</button>
+                  <button id="open-dialog-button" type="button">Open</button>
+                  <button id="export">Export</button>
+                  <button id="export-mc">Export (MC)</button>
+                </div>
+                <input type="range" min="2" max="10" value="5" id="brush" orient="vertical"></input>
+              </div>
+              <div id="tool-row">
+                  <button data-tool="Erase" title="Eraser"><img src="icons/eraser-solid-full.svg" alt="Eraser"></button>
+                  <button data-tool="Fill" title="Paint Bucket"><img src="icons/fill-solid-full.svg" alt="Paint Bucket"></button>
+                  <button data-tool="Square" title="Square Brush"><img src="icons/square-solid-full.svg" alt="Square Brush"></button>
+                  <button data-tool="Circle" class="selected" title="Circle Brush"><img src="icons/circle-solid-full.svg" alt="Circle Brush"></button>
+              </div>
+            </div>
+            <itmas-palette id="palette"></itmas-palette>
+          </div>
+          <div id="grid">
+            <itmas-cloth id="side-view">
+              <span slot="title">Side View</span>
+            </itmas-cloth>
+            <itmas-cloth id="top-view">
+              <span slot="title">Top View</span>
+            </itmas-cloth>
+            <itmas-cloth id="front-view">
+              <span slot="title">Front View</span>
+            </itmas-cloth>
+            <div id="three">
+              <canvas id="three-canvas"></canvas>
+              <div id="three-buttons">
+                <span id="bounding-box"><img src="icons/cube-solid-full.svg" alt="Bounding Box"></span>
+                <span id="expand"><img src="icons/expand-solid-full.svg" alt="Expand"></span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -79,7 +88,7 @@
         <section id="file-section">
           <h3>Import File</h3>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <input type="file" id="load" accept=".zip">
+            <input type="file" id="load" accept=".csz,.zip">
             <button id="load-file-button" type="button">Choose File</button>
             <span id="load-file-name" class="file-name">No file selected</span>
           </div>
