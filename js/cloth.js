@@ -172,6 +172,7 @@ class Cloth extends HTMLElement {
         canvas.addEventListener("pointerdown", (e) => this.handleMouseDown(e));
         document.addEventListener("pointermove", (e) => this.handleMouseMove(e));
         document.addEventListener("pointerup", (e) => this.handleMouseUp(e));
+        this.canvas = canvas;
         this.ctx = canvas.getContext("2d", {willReadFrequently: true});
 
         const overlayCanvas = document.createElement("canvas");
@@ -215,15 +216,32 @@ class Cloth extends HTMLElement {
     --grid-major: 64px;
     --grid-minor: 21.3333px;
     --grid-line-width: 1px;
+    --checker-size: 8px;
+    --checker-offset: 4px;
 
     transform: scale(1);
     display: block;
 
     user-select: none;
 
-    background-size: var(--grid-major) var(--grid-major), var(--grid-major) var(--grid-major), var(--grid-minor) var(--grid-minor), var(--grid-minor) var(--grid-minor);
+    background-size:
+        var(--checker-size) var(--checker-size),
+        var(--checker-size) var(--checker-size),
+        var(--grid-major) var(--grid-major),
+        var(--grid-major) var(--grid-major),
+        var(--grid-minor) var(--grid-minor),
+        var(--grid-minor) var(--grid-minor);
+    background-position:
+        0 0,
+        var(--checker-offset) var(--checker-offset),
+        0 0,
+        0 0,
+        0 0,
+        0 0;
     background-color: #FFF;
     background-image:
+        linear-gradient(45deg, rgba(0,0,0,0.03) 23%, transparent 25%, transparent 75%, rgba(0,0,0,0.03) 75%, rgba(0,0,0,0.03)),
+        linear-gradient(45deg, rgba(0,0,0,0.03) 23%, transparent 25%, transparent 75%, rgba(0,0,0,0.03) 75%, rgba(0,0,0,0.03)),
         linear-gradient(to right, #aaa var(--grid-line-width), transparent var(--grid-line-width)),
         linear-gradient(to bottom, #aaa var(--grid-line-width), transparent var(--grid-line-width)),
         linear-gradient(to right, #d7d7d7 var(--grid-line-width), transparent var(--grid-line-width)),
@@ -242,7 +260,6 @@ class Cloth extends HTMLElement {
     background-color: transparent;
     border: none;
     border-radius: inherit;
-
 }
 #title {
     position: absolute;
@@ -290,6 +307,14 @@ class Cloth extends HTMLElement {
         window.addEventListener("resize", () => this.updateGridScale());
     }
 
+    // For async loading to hide until completely loaded
+    disableCanvas() {
+        this.canvas.style.display = "none";
+    }
+    enableCanvas() {
+        this.canvas.style.display = "block";
+    }
+
     updateGridScale() {
         const pixelRatio = window.devicePixelRatio || 1;
         const rect = this.getBoundingClientRect();
@@ -299,9 +324,13 @@ class Cloth extends HTMLElement {
         const minorPixels = minorDevicePixels / pixelRatio;
         const majorPixels = (minorDevicePixels * 3) / pixelRatio;
         const lineWidth = 1 / pixelRatio;
+        const checkerDevicePixels = minorDevicePixels;
+        const checkerPixels = checkerDevicePixels / pixelRatio;
         this.style.setProperty("--grid-major", `${majorPixels}px`);
         this.style.setProperty("--grid-minor", `${minorPixels}px`);
         this.style.setProperty("--grid-line-width", `${lineWidth}px`);
+        this.style.setProperty("--checker-size", `${checkerPixels}px`);
+        this.style.setProperty("--checker-offset", `${checkerPixels / 2}px`);
     }
 
     disconnectedCallback() {

@@ -46,7 +46,7 @@ label[disabled] {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    align-items: center;
+    align-items: stretch;
 }
 #controls #top-left-panel {
     display: flex;
@@ -55,21 +55,24 @@ label[disabled] {
 }
 
 #controls #tool-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 6px;
+    display: grid;
+    /* justify-content: space-between; */
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
     align-items: center;
 }
 #controls #tool-row button {
     border-radius: var(--button-roundness);
-    font-size: 0.9rem;
+    aspect-ratio: 1 / 1;
     padding: 4px;
     display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 #tool-row button img {
-    width: 16px;
-    height: 16px;
+    width: 75%;
+    height: 75%;
 }
 #controls #tool-row button.selected {
     border: 2px solid black;
@@ -85,10 +88,12 @@ label[disabled] {
 
 #controls #palette {
     align-self: stretch;
-    flex-grow: 1;
+    width: 128px;
+    /* flex-grow: 1; */
     padding: 10px;
     background: linear-gradient(0deg, hsl(207, 77%, 60%), hsl(207, 77%, 60%) var(--progress), rgba(0,0,0,0.1) var(--progress), rgba(0,0,0,0.1));
     border-radius: var(--roundness);
+    margin-top: auto;
 }
 #controls #brush {
     flex-grow: 1;
@@ -317,8 +322,7 @@ dialog .dialog-close {
     border-radius: 50%;
     width: 32px;
     height: 32px;
-    padding: 0;
-    font-size: 1.2rem;
+    padding: 8px;
     line-height: 1;
 }
 
@@ -414,7 +418,6 @@ dialog #file-section .file-name {
 
 #save-dialog .save-preview img {
     width: 100%;
-    height: 140px;
     object-fit: contain;
     border-radius: var(--button-roundness);
     background: white;

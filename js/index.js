@@ -171,7 +171,7 @@ window.addEventListener('load', () => {
         }
     });
 
-    document.getElementById("new").addEventListener("click", async () => {
+    async function handleNewModel() {
         if (!confirmDiscardIfDirty())
             return;
         for (let cloth of cloths) {
@@ -184,7 +184,9 @@ window.addEventListener('load', () => {
         document.querySelector("itmas-layer[layer='0']")?.classList.add("selected");
         setCurrentFileName(null);
         setHasUnsavedChanges(false);
-    });
+    }
+
+    document.getElementById("new").addEventListener("click", handleNewModel);
 
     cloths.forEach((cloth) => {
         cloth.addEventListener("change", () => {
@@ -395,6 +397,9 @@ window.addEventListener('load', () => {
         let zip = new JSZip();
         await zip.loadAsync(file);
 
+        for (const cloth of cloths)
+            cloth.disableCanvas();
+
         for (const cloth of cloths) {
             let layers = Array(4).fill(null);
 
@@ -410,6 +415,9 @@ window.addEventListener('load', () => {
 
             await cloth.deserialize(layers);
         }
+
+        for (const cloth of cloths)
+            cloth.enableCanvas();
 
         let metadataFile = zip.file("metadata.json");
         if (metadataFile != null) {
@@ -539,6 +547,34 @@ window.addEventListener('load', () => {
         loadFileName.textContent = "No file selected";
     });
 
+    async function handleOpenDialog() {
+        renderExamples();
+        await renderSavedModels();
+        openDialog.showModal();
+    }
+
+    document.addEventListener("keydown", (event) => {
+        if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey)
+            return;
+        const target = event.target;
+        if (target instanceof HTMLElement) {
+            const tagName = target.tagName;
+            if (tagName === "INPUT" || tagName === "TEXTAREA" || target.isContentEditable)
+                return;
+        }
+        const key = event.key.toLowerCase();
+        if (key === "n") {
+            event.preventDefault();
+            handleNewModel();
+        } else if (key === "s") {
+            event.preventDefault();
+            handleSaveModel();
+        } else if (key === "o") {
+            event.preventDefault();
+            handleOpenDialog();
+        }
+    });
+
     loadFileButton.addEventListener("click", () => {
         loadInput.click();
     });
@@ -574,6 +610,17 @@ window.addEventListener('load', () => {
         );
     });
 
+    document.querySelectorAll("button[value='cancel']").forEach(b => {
+        b.addEventListener("click", () => {
+            const dialog = b.closest("dialog");
+            dialog?.close("cancel");
+        });
+    });
+
+    saveDialog.addEventListener("cancel", () => {
+        saveDialog.returnValue = "cancel";
+    });
+
     saveDialog.addEventListener("close", async () => {
         if (saveDialog.returnValue == "cancel" || !pendingSaveData) {
             pendingSaveData = null;
@@ -592,7 +639,7 @@ window.addEventListener('load', () => {
         });
     });
 
-    document.getElementById("save").addEventListener("click", async () => {
+    async function handleSaveModel() {
         let zip = new JSZip();
 
         let metadata = {};
@@ -604,9 +651,12 @@ window.addEventListener('load', () => {
                 );
 
         let boundingBoxVisibility = boundingBox.visible;
+        let cursorVisibility = cursor.visible;
         boundingBox.visible = false;
+        cursor.visible = false;
         renderer.render(scene, camera); // Need to do this before taking a 'screenshot'
         boundingBox.visible = boundingBoxVisibility;
+        cursor.visible = cursorVisibility;
         const previewBlob = await new Promise(resolve => document.getElementById("three-canvas").toBlob(resolve));
         zip.file("thumbnail.png", previewBlob);
 
@@ -638,7 +688,9 @@ window.addEventListener('load', () => {
         }).catch((error) => {
             console.error("Save failed", error);
         });
-    });
+    }
+
+    document.getElementById("save").addEventListener("click", handleSaveModel);
 
     function disableButtons() {
         const buttons = [...document.querySelectorAll("#buttons *")].filter(elem => elem.tagName === 'BUTTON');

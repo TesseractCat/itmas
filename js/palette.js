@@ -9,16 +9,19 @@ class Palette extends HTMLElement {
 
         this.attachShadow({ mode: "open" });
 
-const colors = [
-            "#dde4e8",
-            "#ffc97a",
-            "#8dc196",
-            "#5a6e93",
-            "#301c44",
-            "#ce2f7f",
-            "#ef8a6e",
-            "#514cad",
-            "#877aff",
+        const colors = [
+            "#2c203d",
+            "#7a8799",
+            "#aec2c2", 
+            "#703075",
+            "#cc3184",
+            "#e87d43",
+            "#ffce6b",
+            "#daf0d1",
+            "#5dd477",
+            "#25a2a8",
+            "#4b56eb",
+            "#2f328f",
         ];
 
         const wrapper = document.createElement("div");
@@ -82,12 +85,11 @@ input {
 }
 
 #wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex-basis: content;
+    display: grid;
+    align-items: stretch;
     height: 100%;
     gap: 15px;
+    grid-template-columns: 1fr 1fr;
 }
 
 .color {
@@ -101,6 +103,8 @@ input {
     cursor: pointer;
 
     transition: outline 0.2s;
+
+    aspect-ratio: 1 / 1;
 }
 .color:hover, .selected {
     outline-width: 6px;

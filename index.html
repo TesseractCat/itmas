@@ -25,10 +25,10 @@
               <div style="display: flex; flex-direction: row; gap: 15px;">
                 <div id="buttons">
                   <button id="new">New</button>
-                  <button id="clear">Clear</button>
                   <button id="save">Save</button>
                   <button id="open-dialog-button" type="button">Open</button>
                   <button id="export">Export</button>
+                  <button id="clear">Clear</button>
                 </div>
                 <input type="range" min="2" max="10" value="5" id="brush" orient="vertical"></input>
               </div>
@@ -73,7 +73,7 @@
       <form method="dialog">
         <header>
           <h2>Open Model</h2>
-          <button class="dialog-close" value="cancel" aria-label="Close">×</button>
+          <button class="dialog-close" value="cancel" aria-label="Close"><img src="icons/xmark-solid-full.svg"></button>
         </header>
         <section id="saved-section">
           <h3>Saved Models</h3>
@@ -98,7 +98,7 @@
       <form method="dialog">
         <header>
           <h2>Save Model</h2>
-          <button class="dialog-close" value="cancel" formnovalidate aria-label="Close">×</button>
+          <button type="button" class="dialog-close" value="cancel" formnovalidate aria-label="Close"><img src="icons/xmark-solid-full.svg"></button>
         </header>
         <section class="save-dialog-body">
           <div class="save-preview">
@@ -111,8 +111,8 @@
           </div>
         </section>
         <footer class="dialog-actions">
-          <button value="cancel" formnovalidate>Cancel</button>
-          <button type="submit" id="save-dialog-confirm">Save</button>
+          <button value="cancel" formnovalidate type="button">Cancel</button>
+          <button type="submit" id="save-dialog-confirm" value="save">Save</button>
         </footer>
       </form>
     </dialog>
