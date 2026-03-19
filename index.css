@@ -203,6 +203,7 @@ label[disabled] {
     border-radius: var(--roundness) var(--roundness) 0px 0px;
     box-shadow: 10px 10px var(--shadow-color);
     z-index: -1;
+    cursor: pointer;
 }
 
 #picker-panel {

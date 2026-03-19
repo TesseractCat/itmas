@@ -161,6 +161,7 @@ class Cloth extends HTMLElement {
         super();
 
         this.attachShadow({ mode: "open" });
+        this.gridResizeObserver = null;
 
         this.size = 256;
         const canvas = document.createElement("canvas");
@@ -211,18 +212,22 @@ class Cloth extends HTMLElement {
         const style = document.createElement("style");
         style.textContent = `
 :host {
+    --grid-major: 64px;
+    --grid-minor: 21.3333px;
+    --grid-line-width: 1px;
+
     transform: scale(1);
     display: block;
 
     user-select: none;
 
-    background-size: 25% 25%, 25% 25%, calc(100% / 12) calc(100% / 12), calc(100% / 12) calc(100% / 12);
+    background-size: var(--grid-major) var(--grid-major), var(--grid-major) var(--grid-major), var(--grid-minor) var(--grid-minor), var(--grid-minor) var(--grid-minor);
     background-color: #FFF;
     background-image:
-        linear-gradient(to right, #aaa 1px, transparent 1px),
-        linear-gradient(to bottom, #aaa 1px, transparent 1px),
-        linear-gradient(to right, #d7d7d7 1px, transparent 1px),
-        linear-gradient(to bottom, #d7d7d7 1px, transparent 1px);
+        linear-gradient(to right, #aaa var(--grid-line-width), transparent var(--grid-line-width)),
+        linear-gradient(to bottom, #aaa var(--grid-line-width), transparent var(--grid-line-width)),
+        linear-gradient(to right, #d7d7d7 var(--grid-line-width), transparent var(--grid-line-width)),
+        linear-gradient(to bottom, #d7d7d7 var(--grid-line-width), transparent var(--grid-line-width));
 }
 
 * {
@@ -279,6 +284,31 @@ class Cloth extends HTMLElement {
 `;
 
         this.shadowRoot.append(style, canvas, overlayCanvas, title, undoredo);
+        this.updateGridScale();
+        this.gridResizeObserver = new ResizeObserver(() => this.updateGridScale());
+        this.gridResizeObserver.observe(this);
+        window.addEventListener("resize", () => this.updateGridScale());
+    }
+
+    updateGridScale() {
+        const pixelRatio = window.devicePixelRatio || 1;
+        const rect = this.getBoundingClientRect();
+        if (!rect.width || !rect.height)
+            return;
+        const minorDevicePixels = Math.round(rect.width * pixelRatio / 12);
+        const minorPixels = minorDevicePixels / pixelRatio;
+        const majorPixels = (minorDevicePixels * 3) / pixelRatio;
+        const lineWidth = 1 / pixelRatio;
+        this.style.setProperty("--grid-major", `${majorPixels}px`);
+        this.style.setProperty("--grid-minor", `${minorPixels}px`);
+        this.style.setProperty("--grid-line-width", `${lineWidth}px`);
+    }
+
+    disconnectedCallback() {
+        if (this.gridResizeObserver) {
+            this.gridResizeObserver.disconnect();
+            this.gridResizeObserver = null;
+        }
     }
 
     clear(manual = true) {

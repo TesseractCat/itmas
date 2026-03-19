@@ -147,6 +147,7 @@ window.addEventListener('load', () => {
         paletteElem.updateSelectedColor(color, { dispatch: false });
     });
     paletteElem.emitSelectedColor();
+    const defaultPalette = [...paletteElem.getColors()];
 
     document.getElementById("brush").addEventListener("change", (e) => {
         for (let cloth of cloths)
@@ -170,9 +171,24 @@ window.addEventListener('load', () => {
         }
     });
 
+    document.getElementById("new").addEventListener("click", async () => {
+        if (!confirmDiscardIfDirty())
+            return;
+        for (let cloth of cloths) {
+            cloth.clear(false);
+        }
+        await Promise.all(cloths.map((cloth) => cloth.deserialize([null, null, null, null])));
+        paletteElem.setColors(defaultPalette);
+        paletteElem.emitSelectedColor();
+        document.querySelector("itmas-layer.selected")?.classList.remove("selected");
+        document.querySelector("itmas-layer[layer='0']")?.classList.add("selected");
+        setCurrentFileName(null);
+        setHasUnsavedChanges(false);
+    });
+
     cloths.forEach((cloth) => {
         cloth.addEventListener("change", () => {
-            hasUnsavedChanges = true;
+            setHasUnsavedChanges(true);
         });
     });
     document.getElementById("expand").addEventListener("click", () => {
@@ -207,6 +223,45 @@ window.addEventListener('load', () => {
     let pendingSaveData = null;
     let currentFileName = null;
     let hasUnsavedChanges = false;
+    const fileNameLabel = document.querySelector("#file-name p");
+
+    function normalizeModelName(name) {
+        const trimmed = (name ?? "").trim();
+        return trimmed || "Untitled";
+    }
+
+    function updateFileNameDisplay() {
+        const displayName = normalizeModelName(currentFileName);
+        fileNameLabel.textContent = hasUnsavedChanges ? `${displayName}*` : displayName;
+    }
+
+    function setHasUnsavedChanges(value) {
+        hasUnsavedChanges = value;
+        updateFileNameDisplay();
+    }
+
+    function setCurrentFileName(name) {
+        const trimmed = (name ?? "").trim();
+        currentFileName = trimmed ? trimmed : null;
+        updateFileNameDisplay();
+    }
+
+    updateFileNameDisplay();
+
+    async function confirmOverwriteIfExists(name) {
+        const normalizedName = normalizeModelName(name);
+        if (currentFileName && normalizeModelName(currentFileName) === normalizedName)
+            return true;
+        try {
+            const existing = await savedModelsTable.get(normalizedName);
+            if (!existing)
+                return true;
+        } catch (error) {
+            console.warn("Unable to check existing models", error);
+            return true;
+        }
+        return confirm(`"${normalizedName}" already exists. Overwrite it?`);
+    }
 
     function blobToDataUrl(blob) {
         return new Promise((resolve, reject) => {
@@ -284,7 +339,7 @@ window.addEventListener('load', () => {
             dataBlob: blob
         });
         await renderSavedModels();
-        hasUnsavedChanges = false;
+        setHasUnsavedChanges(false);
     }
 
     function createCard({ title, subtitle, thumbnail, onClick, actions = [] }) {
@@ -368,13 +423,15 @@ window.addEventListener('load', () => {
 
         document.querySelector("itmas-layer.selected")?.classList.remove("selected");
         document.querySelector("itmas-layer[layer='0']")?.classList.add("selected");
-        hasUnsavedChanges = false;
+        setHasUnsavedChanges(false);
     }
 
     async function loadZipAndCloseDialog(file, filename = null) {
         await loadZip(file);
         if (filename)
-            currentFileName = filename;
+            setCurrentFileName(filename);
+        else
+            setCurrentFileName(null);
         openDialog.close();
     }
 
@@ -434,7 +491,7 @@ window.addEventListener('load', () => {
                 const blob = model.dataBlob;
                 if (!blob)
                     return;
-                saveAs(blob, model.filename ?? "model.zip");
+                saveAs(blob, model.filename ?? "model.csz");
             });
 
             const thumbnailUrl = model.thumbnailBlob ? URL.createObjectURL(model.thumbnailBlob) : emptyThumbnail;
@@ -486,6 +543,19 @@ window.addEventListener('load', () => {
         loadInput.click();
     });
 
+    fileNameLabel.addEventListener("click", async () => {
+        const proposedName = prompt("Rename model", normalizeModelName(currentFileName));
+        if (proposedName === null)
+            return;
+        const trimmedName = proposedName.trim();
+        const nextName = trimmedName || "Untitled";
+        const shouldOverwrite = await confirmOverwriteIfExists(nextName);
+        if (!shouldOverwrite)
+            return;
+        setCurrentFileName(nextName);
+        setHasUnsavedChanges(true);
+    });
+
     loadInput.addEventListener("change", async (e)  => {
         const files = e.target.files;
         if (files.length == 0)
@@ -496,17 +566,28 @@ window.addEventListener('load', () => {
             loadInput.value = "";
             return;
         }
-        await loadZipAndCloseDialog(file, file.name.replace(/\.zip$/i, ""));
+        await loadZipAndCloseDialog(
+            file,
+            file.name
+                .replace(/\.zip$/i, "")
+                .replace(/\.csz$/i, "")
+        );
     });
 
-    saveDialog.addEventListener("close", () => {
+    saveDialog.addEventListener("close", async () => {
         if (saveDialog.returnValue == "cancel" || !pendingSaveData) {
             pendingSaveData = null;
             return;
         }
         const { blob, previewBlob } = pendingSaveData;
-        commitSave({ name: saveDialogName.value, blob, previewBlob }).finally(() => {
-            currentFileName = saveDialogName.value;
+        const nextName = saveDialogName.value;
+        const shouldOverwrite = await confirmOverwriteIfExists(nextName);
+        if (!shouldOverwrite) {
+            pendingSaveData = null;
+            return;
+        }
+        commitSave({ name: nextName, blob, previewBlob }).finally(() => {
+            setCurrentFileName(nextName);
             pendingSaveData = null;
         });
     });
@@ -540,7 +621,11 @@ window.addEventListener('load', () => {
 
         zip.generateAsync({type:"blob"}).then(async (blob) => {
             if (currentFileName != null) {
+                const shouldOverwrite = await confirmOverwriteIfExists(currentFileName);
+                if (!shouldOverwrite)
+                    return;
                 await commitSave({ name: currentFileName, blob, previewBlob });
+                setCurrentFileName(currentFileName);
                 return;
             }
 
@@ -651,88 +736,88 @@ void main() {
         worker.postMessage({ type: "finalize", filename: "export.vox" });
     });
 
-    document.getElementById("export-mc").addEventListener("click", async () => {
-        const buttons = disableButtons();
+//     document.getElementById("export-mc").addEventListener("click", async () => {
+//         const buttons = disableButtons();
 
-        const worker = ExportMCWorker();
-        worker.postMessage({ type: "init", totalLayers: 256 });
+//         const worker = ExportMCWorker();
+//         worker.postMessage({ type: "init", totalLayers: 256 });
 
-        worker.addEventListener("message", (event) => {
-            const message = event.data;
-            if (!message)
-                return;
-            if (message.type === "progress") {
-                document.documentElement.style.setProperty("--progress", `${message.percent}%`);
-            } else if (message.type === "done") {
-                saveAs(message.blob, message.filename ?? "export.gltf");
-                enableButtons(buttons);
-                worker.terminate();
-            }
-        });
-        worker.addEventListener("error", (event) => {
-            console.error("export MC worker error", event);
-            enableButtons(buttons);
-            worker.terminate();
-        });
+//         worker.addEventListener("message", (event) => {
+//             const message = event.data;
+//             if (!message)
+//                 return;
+//             if (message.type === "progress") {
+//                 document.documentElement.style.setProperty("--progress", `${message.percent}%`);
+//             } else if (message.type === "done") {
+//                 saveAs(message.blob, message.filename ?? "export.gltf");
+//                 enableButtons(buttons);
+//                 worker.terminate();
+//             }
+//         });
+//         worker.addEventListener("error", (event) => {
+//             console.error("export MC worker error", event);
+//             enableButtons(buttons);
+//             worker.terminate();
+//         });
 
-        const gpuCompute = new GPUComputationRenderer(256, 256, renderer);
-        const test = gpuCompute.createShaderMaterial(`
-uniform sampler2D frontViews[4];
-uniform sampler2D sideViews[4];
-uniform sampler2D topViews[4];
-uniform int layer;
+//         const gpuCompute = new GPUComputationRenderer(256, 256, renderer);
+//         const test = gpuCompute.createShaderMaterial(`
+// uniform sampler2D frontViews[4];
+// uniform sampler2D sideViews[4];
+// uniform sampler2D topViews[4];
+// uniform int layer;
 
-${sampleVolumeSnippet}
+// ${sampleVolumeSnippet}
 
-void main() {
-    vec2 uv = gl_FragCoord.xy / resolution.xy;
+// void main() {
+//     vec2 uv = gl_FragCoord.xy / resolution.xy;
 
-    vec3 p = vec3(uv.x, float(layer)/255.0, uv.y);
-    gl_FragColor = sampleVolume(p);
-}
-`, {
-    layer: { value: null },
-    frontViews: { type: "tv", value: null },
-    sideViews: { type: "tv", value: null },
-    topViews: { type: "tv", value: null },
-});
-        test.uniforms.topViews.value = cloths[0].textures;
-        test.uniforms.frontViews.value = cloths[1].textures;
-        test.uniforms.sideViews.value = cloths[2].textures;
+//     vec3 p = vec3(uv.x, float(layer)/255.0, uv.y);
+//     gl_FragColor = sampleVolume(p);
+// }
+// `, {
+//     layer: { value: null },
+//     frontViews: { type: "tv", value: null },
+//     sideViews: { type: "tv", value: null },
+//     topViews: { type: "tv", value: null },
+// });
+//         test.uniforms.topViews.value = cloths[0].textures;
+//         test.uniforms.frontViews.value = cloths[1].textures;
+//         test.uniforms.sideViews.value = cloths[2].textures;
 
-        const error = gpuCompute.init();
-        if (error !== null)
-            console.error(error);
+//         const error = gpuCompute.init();
+//         if (error !== null)
+//             console.error(error);
 
-        let buffer = new Float32Array(256 * 256 * 4);
-        let renderTarget = gpuCompute.createRenderTarget();
+//         let buffer = new Float32Array(256 * 256 * 4);
+//         let renderTarget = gpuCompute.createRenderTarget();
 
-        for (let layer = 0; layer < 256; layer++) {
-            test.uniforms.layer.value = layer;
+//         for (let layer = 0; layer < 256; layer++) {
+//             test.uniforms.layer.value = layer;
 
-            gpuCompute.doRenderTarget(test, renderTarget);
+//             gpuCompute.doRenderTarget(test, renderTarget);
 
-            renderer.readRenderTargetPixels(renderTarget, 0, 0, 256, 256, buffer);
+//             renderer.readRenderTargetPixels(renderTarget, 0, 0, 256, 256, buffer);
 
-            let pixels = new Uint8ClampedArray(256 * 256 * 4);
-            for (let i = 0; i < buffer.length/4; i++) {
-                pixels[(i * 4) + 0] = buffer[(i * 4) + 0] * 255;
-                pixels[(i * 4) + 1] = buffer[(i * 4) + 1] * 255;
-                pixels[(i * 4) + 2] = buffer[(i * 4) + 2] * 255;
-                pixels[(i * 4) + 3] = buffer[(i * 4) + 3] * 255;
-            }
+//             let pixels = new Uint8ClampedArray(256 * 256 * 4);
+//             for (let i = 0; i < buffer.length/4; i++) {
+//                 pixels[(i * 4) + 0] = buffer[(i * 4) + 0] * 255;
+//                 pixels[(i * 4) + 1] = buffer[(i * 4) + 1] * 255;
+//                 pixels[(i * 4) + 2] = buffer[(i * 4) + 2] * 255;
+//                 pixels[(i * 4) + 3] = buffer[(i * 4) + 3] * 255;
+//             }
 
-            worker.postMessage({
-                type: "layer",
-                layer,
-                width: 256,
-                height: 256,
-                pixels: pixels.buffer
-            }, [pixels.buffer]);
-        }
+//             worker.postMessage({
+//                 type: "layer",
+//                 layer,
+//                 width: 256,
+//                 height: 256,
+//                 pixels: pixels.buffer
+//             }, [pixels.buffer]);
+//         }
 
-        worker.postMessage({ type: "finalize", filename: "export.gltf" });
-    });
+//         worker.postMessage({ type: "finalize", filename: "export.gltf" });
+//     });
 
 
 
