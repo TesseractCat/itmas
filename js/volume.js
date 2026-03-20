@@ -16,6 +16,8 @@ vec4 sampleVolume(vec3 p) { // p: (0-1, 0-1, 0-1)
 
     #pragma unroll_loop_start
     for (int i = 0; i < 4; i++) {
+        if (layerVisibility[i] == 1) {
+
         t = texture2D(topViews[i], vec2(p.x, 1.0 - p.z));
         if (t.a > 0.5) {
         f = texture2D(frontViews[i], p.xy);
@@ -36,6 +38,8 @@ vec4 sampleVolume(vec3 p) { // p: (0-1, 0-1, 0-1)
 
         return result;
         }}}
+
+        }
     }
     #pragma unroll_loop_end
 
@@ -53,11 +57,15 @@ float sampleDistance(vec3 p) { // p: (0-1, 0-1, 0-1)
 
     #pragma unroll_loop_start
     for (int i = 0; i < 4; i++) {
+        if (layerVisibility[i] == 1) {
+
         t = texture2D(topViews[i], vec2(p.x, 1.0 - p.z)).a;
         f = texture2D(frontViews[i], p.xy).a;
         s = texture2D(sideViews[i], p.zy).a;
 
         result = min(result, min(t, min(f, s)));
+
+        }
     }
     #pragma unroll_loop_end
 
@@ -72,12 +80,16 @@ float sampleDistanceBinary(vec3 p) {
 
     #pragma unroll_loop_start
     for (int i = 0; i < 4; i++) {
+        if (layerVisibility[i] == 1) {
+
         t = texture2D(topViews[i], vec2(p.x, 1.0 - p.z)).a;
         f = texture2D(frontViews[i], p.xy).a;
         s = texture2D(sideViews[i], p.zy).a;
 
         if (t < 0.5 && f < 0.5 && s < 0.5) {
             result += 1.0;
+        }
+
         }
     }
     #pragma unroll_loop_end
@@ -115,6 +127,7 @@ export class VolumeMaterial extends ShaderMaterial {
         this.uniforms["topViews"] = { type: "tv", value: this.topViews };
         this.uniforms["frontViews"] = { type: "tv", value: this.frontViews };
         this.uniforms["sideViews"] = { type: "tv", value: this.sideViews };
+        this.uniforms["layerVisibility"] = { value: [1, 1, 1, 1] };
 
         this.vertexShader = `
 varying vec3 v_position;
@@ -133,6 +146,7 @@ void main() {
 uniform sampler2D topViews[4];
 uniform sampler2D frontViews[4];
 uniform sampler2D sideViews[4];
+uniform int layerVisibility[4];
 
 varying vec3 v_position;
 varying vec2 v_uv;

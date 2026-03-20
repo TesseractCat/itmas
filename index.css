@@ -158,17 +158,10 @@ label[disabled] {
     /* font-style: italic; */
     font-weight: 800;
 }
-#layers button {
-    font-size: 4rem;
-    width: 60px;
-}
-#layers button:hover {
-    width: 72px;
-}
-#layers button:active, #layers itmas-layer:active {
-    box-shadow: 5px 5px var(--shadow-color);
-    transform: translate(0px, 5px);
-    width: 77px;
+#layers itmas-layer:hover {
+    /* width: 120%; */
+    transform: translate(0px, 2px);
+    box-shadow: 8px 8px var(--shadow-color);
 }
 #layers itmas-layer {
     width: 100%;
@@ -176,11 +169,13 @@ label[disabled] {
     font-weight: bold;
     text-align: center;
 }
-#layers itmas-layer:hover {
-    width: 120%;
+#layers button:active, #layers itmas-layer:active {
+    box-shadow: 5px 5px var(--shadow-color);
+    transform: translate(0px, 5px);
+    /* width: 77px; */
 }
 #layers itmas-layer:active {
-    width: calc(120% + 5px);
+    /* width: calc(120% + 5px); */
 }
 
 #content {

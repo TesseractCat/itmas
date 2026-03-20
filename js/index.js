@@ -789,6 +789,7 @@ window.addEventListener('load', () => {
 uniform sampler2D frontViews[4];
 uniform sampler2D sideViews[4];
 uniform sampler2D topViews[4];
+uniform float layerVisibility[4];
 uniform int layer;
 
 ${sampleVolumeSnippet}
@@ -804,10 +805,12 @@ void main() {
     frontViews: { type: "tv", value: null },
     sideViews: { type: "tv", value: null },
     topViews: { type: "tv", value: null },
+    layerVisibility: { value: [1, 1, 1, 1] },
 });
         test.uniforms.topViews.value = cloths[0].textures;
         test.uniforms.frontViews.value = cloths[1].textures;
         test.uniforms.sideViews.value = cloths[2].textures;
+        test.uniforms.layerVisibility.value = [1,1,1,1];
 
         const error = gpuCompute.init();
         if (error !== null)
@@ -932,7 +935,7 @@ void main() {
         loadingLayers = false;
         let layer = parseInt(layerTab.getAttribute("layer"));
 
-        layerTab.addEventListener("click", async () => {
+        layerTab.addEventListener("enable", async () => {
             if (loadingLayers) {
                 console.warn("Attempted to load layers while loading layers!");
                 return;
@@ -944,6 +947,13 @@ void main() {
             await Promise.all(cloths.map(c => c.loadLayer(layer)));
             loadingLayers = false;
         });
+
+        layerTab.addEventListener("toggle", (event) => {
+            const { hidden } = event.detail || {};
+            const isVisible = !hidden;
+            cloths.forEach((cloth) => cloth.setLayerVisibility(layer, isVisible));
+            updateLayerVisibilityUniform();
+        });
     });
 
     // Create volume box
@@ -953,8 +963,17 @@ void main() {
         frontViews: views[1],
         sideViews: views[2],
     });
+
+    function updateLayerVisibilityUniform() {
+        const visibility = Array(4).fill(1);
+        for (let i = 0; i < 4; i++) {
+            visibility[i] = cloths[0].getLayerVisibility(i) ? 1 : 0;
+        }
+        volumeMaterial.uniforms.layerVisibility.value = visibility;
+    }
     const volume = new Mesh(volumeGeometry, volumeMaterial);
     scene.add(volume);
+    updateLayerVisibilityUniform();
 
     // Create cursor
     const cursorGeometry = new CylinderGeometry(0.025, 0.025, 1, 16);

@@ -154,6 +154,7 @@ class Cloth extends HTMLElement {
         return t;
     });
     layers = Array(4).fill(null).map(() => new UndoManager());
+    layerVisibility = Array(4).fill(true);
     layer = 0;
 
     mouseDown = false;
@@ -524,6 +525,14 @@ class Cloth extends HTMLElement {
         this.layer = layer;
 
         await this.layers[layer].restore(this.ctx);
+    }
+
+    setLayerVisibility(layer, isVisible) {
+        this.layerVisibility[layer] = isVisible;
+    }
+
+    getLayerVisibility(layer) {
+        return this.layerVisibility[layer];
     }
 
     async serialize() {
