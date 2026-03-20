@@ -16,7 +16,7 @@ body {
 
 * {
     box-sizing: border-box;
-    user-select: none;
+    /* user-select: none; */ /* Causes selection bug */
 
     font-family: "M PLUS 1p", sans-serif;
     font-weight: 700;

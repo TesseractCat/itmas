@@ -15,7 +15,7 @@ import { Scene, PerspectiveCamera, OrthographicCamera, WebGLRenderer,
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
 
-import { VolumeMaterial, sampleVolumeSnippet } from './volume';
+import { VolumeMaterial, sampleVolumeSnippet, LAYER_COUNT } from './volume';
 import { jumpFlood } from './jumpflood';
 import JSZip from 'jszip';
 import Dexie from 'dexie';
@@ -31,17 +31,15 @@ import ExportMCWorker from './exportMC.worker.js';
 
 // TODO:
 //  - Favicon/meta tags
+// ctrl a bug, rename text input, more layers?, tablet?
+// export dialog, fixed marching cubes export
+// steam page
 //  - Jump Flood/SDF:
 //      - Shading/normals
 //  - Canvas:
-//      - Fix weird lines
-//      - Direction indicator
 //      - Light preview of CSG on cloth
-//      - Undo/Redo
 //      - Straight line tool
 //  - Layers:
-//      - Preview
-//      - Hide/show
 //      - Move in space
 
 function saveAs(blob, name) {
@@ -132,6 +130,20 @@ window.addEventListener('load', () => {
         renderer.render(scene, camera);
     }
     render();
+
+    // Create layer tabs
+    const layersContainer = document.getElementById("layers");
+    const layersHeader = layersContainer?.querySelector("header");
+
+    const fragment = document.createDocumentFragment();
+    for (let layer = LAYER_COUNT - 1; layer >= 0; layer--) {
+        const tab = document.createElement("itmas-layer");
+        tab.setAttribute("layer", layer.toString());
+        if (layer === 0)
+            tab.classList.add("selected");
+        fragment.appendChild(tab);
+    }
+    layersContainer?.appendChild(fragment);
 
     // Wire up color palette and picker
     const paletteElem = document.getElementById("palette");
@@ -416,7 +428,7 @@ window.addEventListener('load', () => {
             cloth.disableCanvas();
 
         for (const cloth of cloths) {
-            let layers = Array(4).fill(null);
+            let layers = Array(LAYER_COUNT).fill(null);
 
             for (let [name, image] of Object.entries(zip.files)) {
                 let match = name.match(new RegExp(`${cloth.id}/layer-(\\d+).png`));
@@ -786,10 +798,10 @@ window.addEventListener('load', () => {
 
         const gpuCompute = new GPUComputationRenderer(256, 256, renderer);
         const test = gpuCompute.createShaderMaterial(`
-uniform sampler2D frontViews[4];
-uniform sampler2D sideViews[4];
-uniform sampler2D topViews[4];
-uniform float layerVisibility[4];
+uniform sampler2D frontViews[${LAYER_COUNT}];
+uniform sampler2D sideViews[${LAYER_COUNT}];
+uniform sampler2D topViews[${LAYER_COUNT}];
+uniform float layerVisibility[${LAYER_COUNT}];
 uniform int layer;
 
 ${sampleVolumeSnippet}
@@ -805,7 +817,7 @@ void main() {
     frontViews: { type: "tv", value: null },
     sideViews: { type: "tv", value: null },
     topViews: { type: "tv", value: null },
-    layerVisibility: { value: [1, 1, 1, 1] },
+    layerVisibility: { value: Array(LAYER_COUNT).fill(1) },
 });
         test.uniforms.topViews.value = cloths[0].textures;
         test.uniforms.frontViews.value = cloths[1].textures;
@@ -965,8 +977,8 @@ void main() {
     });
 
     function updateLayerVisibilityUniform() {
-        const visibility = Array(4).fill(1);
-        for (let i = 0; i < 4; i++) {
+        const visibility = Array(LAYER_COUNT).fill(1);
+        for (let i = 0; i < LAYER_COUNT; i++) {
             visibility[i] = cloths[0].getLayerVisibility(i) ? 1 : 0;
         }
         volumeMaterial.uniforms.layerVisibility.value = visibility;

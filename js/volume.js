@@ -1,6 +1,8 @@
 import { ShaderMaterial, CanvasTexture, DoubleSide } from 'three';
 import { jumpFlood } from './jumpflood';
 
+export const LAYER_COUNT = 4;
+
 export const sampleVolumeSnippet = `
 float distSq(vec3 a, vec3 b) {
     vec3 d = a - b;
@@ -15,7 +17,7 @@ vec4 sampleVolume(vec3 p) { // p: (0-1, 0-1, 0-1)
     vec4 result = vec4(0,0,0,0);
 
     #pragma unroll_loop_start
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < ${LAYER_COUNT}; i++) {
         if (layerVisibility[i] == 1) {
 
         t = texture2D(topViews[i], vec2(p.x, 1.0 - p.z));
@@ -56,7 +58,7 @@ float sampleDistance(vec3 p) { // p: (0-1, 0-1, 0-1)
     float result = 999.0;
 
     #pragma unroll_loop_start
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < ${LAYER_COUNT}; i++) {
         if (layerVisibility[i] == 1) {
 
         t = texture2D(topViews[i], vec2(p.x, 1.0 - p.z)).a;
@@ -79,7 +81,7 @@ float sampleDistanceBinary(vec3 p) {
     float result = 0.0;
 
     #pragma unroll_loop_start
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < ${LAYER_COUNT}; i++) {
         if (layerVisibility[i] == 1) {
 
         t = texture2D(topViews[i], vec2(p.x, 1.0 - p.z)).a;
@@ -94,7 +96,7 @@ float sampleDistanceBinary(vec3 p) {
     }
     #pragma unroll_loop_end
 
-    return result/4.0;
+    return result/${LAYER_COUNT}.0;
 }
 
 // https://iquilezles.org/articles/normalsSDF/
@@ -127,7 +129,7 @@ export class VolumeMaterial extends ShaderMaterial {
         this.uniforms["topViews"] = { type: "tv", value: this.topViews };
         this.uniforms["frontViews"] = { type: "tv", value: this.frontViews };
         this.uniforms["sideViews"] = { type: "tv", value: this.sideViews };
-        this.uniforms["layerVisibility"] = { value: [1, 1, 1, 1] };
+        this.uniforms["layerVisibility"] = { value: Array(LAYER_COUNT).fill(1) };
 
         this.vertexShader = `
 varying vec3 v_position;
@@ -143,10 +145,10 @@ void main() {
 `
 
         this.fragmentShader = `
-uniform sampler2D topViews[4];
-uniform sampler2D frontViews[4];
-uniform sampler2D sideViews[4];
-uniform int layerVisibility[4];
+uniform sampler2D topViews[${LAYER_COUNT}];
+uniform sampler2D frontViews[${LAYER_COUNT}];
+uniform sampler2D sideViews[${LAYER_COUNT}];
+uniform int layerVisibility[${LAYER_COUNT}];
 
 varying vec3 v_position;
 varying vec2 v_uv;

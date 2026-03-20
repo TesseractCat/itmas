@@ -1,5 +1,6 @@
 import { aliasedLine, aliasedCircle } from './aliased';
 import { Texture, DataTexture, Vector2 } from 'three';
+import { LAYER_COUNT } from './volume';
 
 export const BrushType = {
     Circle: 'Circle',
@@ -145,7 +146,7 @@ class Cloth extends HTMLElement {
     brushSize = 0.5;
     brushStyle = BrushType.Circle;
 
-    textures = Array(4).fill(null).map(() => {
+    textures = Array(LAYER_COUNT).fill(null).map(() => {
         let t = new DataTexture(
             new Uint8Array(256 * 256 * 4), 256, 256
         );
@@ -153,8 +154,8 @@ class Cloth extends HTMLElement {
         t.needsUpdate = true;
         return t;
     });
-    layers = Array(4).fill(null).map(() => new UndoManager());
-    layerVisibility = Array(4).fill(true);
+    layers = Array(LAYER_COUNT).fill(null).map(() => new UndoManager());
+    layerVisibility = Array(LAYER_COUNT).fill(true);
     layer = 0;
 
     mouseDown = false;
