@@ -31,7 +31,7 @@ import ExportMCWorker from './exportMC.worker.js';
 
 // TODO:
 //  - Favicon/meta tags
-// ctrl a bug, rename text input, more layers?, tablet?
+// rename text input, more layers?, tablet?
 // export dialog, fixed marching cubes export
 // steam page
 //  - Jump Flood/SDF:
@@ -252,9 +252,11 @@ window.addEventListener('load', () => {
     const exampleThumbnailCache = new Map();
     const emptyThumbnail = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
     let pendingSaveData = null;
-    let currentFileName = null;
     let hasUnsavedChanges = false;
+    let currentFileName = null;
+    const fileNameContainer = document.querySelector("#file-name");
     const fileNameLabel = document.querySelector("#file-name p");
+    const fileNameInput = document.querySelector("#file-name input");
 
     function normalizeModelName(name) {
         const trimmed = (name ?? "").trim();
@@ -263,7 +265,9 @@ window.addEventListener('load', () => {
 
     function updateFileNameDisplay() {
         const displayName = normalizeModelName(currentFileName);
-        fileNameLabel.textContent = hasUnsavedChanges ? `${displayName}*` : displayName;
+        const outputName = hasUnsavedChanges ? `${displayName}*` : displayName;
+        fileNameLabel.textContent = outputName;
+        fileNameInput.value = displayName;
     }
 
     function setHasUnsavedChanges(value) {
@@ -646,17 +650,53 @@ window.addEventListener('load', () => {
         loadInput.click();
     });
 
-    fileNameLabel.addEventListener("click", async () => {
-        const proposedName = prompt("Rename model", normalizeModelName(currentFileName));
-        if (proposedName === null)
+    function finishFileNameEdit({ commit }) {
+        if (!fileNameContainer.classList.contains("editing"))
             return;
-        const trimmedName = proposedName.trim();
+        fileNameContainer.classList.remove("editing");
+        if (!commit) {
+            updateFileNameDisplay();
+            return;
+        }
+        const trimmedName = fileNameInput.value.trim();
         const nextName = trimmedName || "Untitled";
-        const shouldOverwrite = await confirmOverwriteIfExists(nextName);
-        if (!shouldOverwrite)
+        confirmOverwriteIfExists(nextName).then((shouldOverwrite) => {
+            if (!shouldOverwrite) {
+                updateFileNameDisplay();
+                return;
+            }
+            setCurrentFileName(nextName);
+            setHasUnsavedChanges(true);
+        });
+    }
+
+    function startFileNameEdit() {
+        fileNameInput.value = normalizeModelName(currentFileName);
+        fileNameContainer.classList.add("editing");
+        fileNameInput.focus();
+        fileNameInput.select();
+    }
+
+    fileNameContainer.addEventListener("click", (event) => {
+        if (event.target === fileNameInput)
             return;
-        setCurrentFileName(nextName);
-        setHasUnsavedChanges(true);
+        if (fileNameContainer.classList.contains("editing"))
+            return;
+        startFileNameEdit();
+    });
+
+    fileNameInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            finishFileNameEdit({ commit: true });
+        } else if (event.key === "Escape") {
+            event.preventDefault();
+            finishFileNameEdit({ commit: false });
+        }
+    });
+
+    fileNameInput.addEventListener("blur", () => {
+        finishFileNameEdit({ commit: true });
     });
 
     loadInput.addEventListener("change", async (e)  => {

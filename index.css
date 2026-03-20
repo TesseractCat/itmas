@@ -203,7 +203,31 @@ label[disabled] {
     border-radius: var(--roundness) var(--roundness) 0px 0px;
     box-shadow: 10px 10px var(--shadow-color);
     z-index: -1;
-    cursor: pointer;
+    cursor: text;
+    gap: 6px;
+}
+
+#file-name p {
+    white-space: nowrap;
+}
+
+#file-name input {
+    display: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: var(--button-roundness);
+    border: 1px solid rgba(0,0,0,0.4);
+    padding: 2px 6px;
+    height: 20px;
+    width: 140px;
+}
+
+#file-name.editing p {
+    display: none;
+}
+
+#file-name.editing input {
+    display: inline-block;
 }
 
 #picker-panel {
