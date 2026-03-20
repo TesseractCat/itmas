@@ -6,6 +6,7 @@ export const BrushType = {
     Square: 'Square',
     Fill: 'Fill',
     Erase: 'Erase',
+    Picker: 'Picker',
 };
 
 function floodFill(ctx, x, y, erase) {
@@ -196,8 +197,7 @@ class Cloth extends HTMLElement {
         undo.id = "undo";
         undo.textContent = "↶";
         undo.addEventListener("click", async () => {
-            await this.layers[this.layer].undo(this.ctx);
-            this.invalidate(this.layer);
+            await this.undo();
         });
         undoredo.append(undo);
 
@@ -205,8 +205,7 @@ class Cloth extends HTMLElement {
         redo.id = "redo";
         redo.textContent = "↷";
         redo.addEventListener("click", async () => {
-            await this.layers[this.layer].redo(this.ctx);
-            this.invalidate(this.layer);
+            await this.redo();
         });
         undoredo.append(redo);
 
@@ -344,6 +343,7 @@ class Cloth extends HTMLElement {
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
         if (manual)
             this.invalidate(this.layer);
+        this.layers[this.layer].push(this.ctx);
     }
     palettize(colors) {
         function distance(a, b) {
@@ -413,9 +413,21 @@ class Cloth extends HTMLElement {
         if (this.color == "transparent" || this.brushStyle == BrushType.Erase)
             this.ctx.globalCompositeOperation = "destination-out";
 
+        if (this.brushStyle == BrushType.Picker) {
+            const pixel = this.ctx.getImageData(Math.floor(current[0]), Math.floor(current[1]), 1, 1).data;
+            if (pixel[3] > 0) {
+                const color = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
+                this.dispatchEvent(new CustomEvent("pickcolor", { detail: color }));
+            }
+            this.mouseDown = false;
+            this.ctx.globalCompositeOperation = "source-over";
+            return;
+        }
+
         if (e.ctrlKey || this.brushStyle == BrushType.Fill) {
             floodFill(this.ctx, Math.floor(current[0]), Math.floor(current[1]), this.color == "transparent" || this.brushStyle == BrushType.Erase);
             this.mouseDown = false;
+            this.layers[this.layer].push(this.ctx);
         } else {
             let brushSize = e.pointerType == "pen" ? Math.max(e.pressure, 0.2) : this.brushSize;
             aliasedLine(this.ctx, current, current, brushSize * brushScale, this.brushStyle == BrushType.Square);
@@ -444,15 +456,17 @@ class Cloth extends HTMLElement {
                                   this.overlayCtx.canvas.width, this.overlayCtx.canvas.height);
         this.overlayCtx.beginPath(); // Need to do this after clearing?
         this.overlayCtx.fillStyle = (this.color == "transparent" || this.brushStyle == BrushType.Erase) ? "rgba(0,0,0,0.5)" : this.color;
-        if (this.brushStyle == BrushType.Square) {
-            let radius = brushSize * brushScale;
-            this.overlayCtx.fillRect(Math.floor(current[0]) - radius, Math.floor(current[1]) - radius, radius*2, radius*2);
-        } else {
-            aliasedCircle(this.overlayCtx, current[0], current[1], brushSize * brushScale);
+        if (this.brushStyle !== BrushType.Picker) {
+            if (this.brushStyle == BrushType.Square) {
+                let radius = brushSize * brushScale;
+                this.overlayCtx.fillRect(Math.floor(current[0]) - radius, Math.floor(current[1]) - radius, radius*2, radius*2);
+            } else {
+                aliasedCircle(this.overlayCtx, current[0], current[1], brushSize * brushScale);
+            }
+            this.overlayCtx.fill();
         }
-        this.overlayCtx.fill();
         
-        if (this.mouseDown) {
+        if (this.mouseDown && this.brushStyle !== BrushType.Picker) {
             if (this.color == "transparent" || this.brushStyle == BrushType.Erase)
                 this.ctx.globalCompositeOperation = "destination-out";
             aliasedLine(this.ctx, previous, current, brushSize * brushScale, this.brushStyle == BrushType.Square);
@@ -479,6 +493,16 @@ class Cloth extends HTMLElement {
         if (this.mouseDown)
             this.layers[this.layer].push(this.ctx);
         this.mouseDown = false;
+    }
+
+    async undo() {
+        await this.layers[this.layer].undo(this.ctx);
+        this.invalidate(this.layer);
+    }
+
+    async redo() {
+        await this.layers[this.layer].redo(this.ctx);
+        this.invalidate(this.layer);
     }
 
     invalidate(layer) {

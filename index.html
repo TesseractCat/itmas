@@ -24,19 +24,20 @@
             <div id="top-left-panel">
               <div style="display: flex; flex-direction: row; gap: 15px;">
                 <div id="buttons">
-                  <button id="new">New</button>
-                  <button id="save">Save</button>
-                  <button id="open-dialog-button" type="button">Open</button>
+                  <button id="new" title="Ctrl-N">New</button>
+                  <button id="save" title="Ctrl-S">Save</button>
+                  <button id="open-dialog-button" type="button" title="Ctrl-O">Open</button>
                   <button id="export">Export</button>
                   <button id="clear">Clear</button>
                 </div>
-                <input type="range" min="2" max="10" value="5" id="brush" orient="vertical"></input>
+                <input type="range" min="0" max="10" value="5" id="brush" orient="vertical"></input>
               </div>
               <div id="tool-row">
-                  <button data-tool="Erase" title="Eraser"><img src="icons/eraser-solid-full.svg" alt="Eraser"></button>
-                  <button data-tool="Fill" title="Paint Bucket"><img src="icons/fill-solid-full.svg" alt="Paint Bucket"></button>
-                  <button data-tool="Square" title="Square Brush"><img src="icons/square-solid-full.svg" alt="Square Brush"></button>
-                  <button data-tool="Circle" class="selected" title="Circle Brush"><img src="icons/circle-solid-full.svg" alt="Circle Brush"></button>
+                  <button data-tool="Erase" title="Eraser (E)"><img src="icons/eraser-solid-full.svg" alt="Eraser (E)"></button>
+                  <button data-tool="Fill" title="Paint Bucket (F)"><img src="icons/fill-solid-full.svg" alt="Paint Bucket (F)"></button>
+                  <button data-tool="Picker" title="Color Picker (R)"><img src="icons/eye-dropper-full.svg" alt="Color Picker (R)"></button>
+                  <button data-tool="Square" title="Square Brush (S)"><img src="icons/square-solid-full.svg" alt="Square Brush (S)"></button>
+                  <button data-tool="Circle" class="selected" title="Circle Brush (C)"><img src="icons/circle-solid-full.svg" alt="Circle Brush (C)"></button>
               </div>
             </div>
             <itmas-palette id="palette"></itmas-palette>

@@ -75,6 +75,7 @@ window.addEventListener('load', () => {
         document.getElementById("side-view"),
     ];
     const views = cloths.map(x => x.textures);
+    let activeCloth = null;
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.minDistance = 0.4;
@@ -191,6 +192,22 @@ window.addEventListener('load', () => {
     cloths.forEach((cloth) => {
         cloth.addEventListener("change", () => {
             setHasUnsavedChanges(true);
+        });
+        cloth.addEventListener("pickcolor", (event) => {
+            const color = event.detail;
+            if (color) {
+                pickerElem.setColor(color);
+                for (let cloth of cloths)
+                    cloth.color = color;
+                paletteElem.updateSelectedColor(color, { dispatch: false });
+            }
+        });
+        cloth.addEventListener("pointerover", () => {
+            activeCloth = cloth;
+        });
+        cloth.addEventListener("pointerout", (event) => {
+            if (!event.relatedTarget || !cloth.contains(event.relatedTarget))
+                activeCloth = null;
         });
     });
     document.getElementById("expand").addEventListener("click", () => {
@@ -356,15 +373,13 @@ window.addEventListener('load', () => {
         img.src = thumbnail || emptyThumbnail;
         card.appendChild(img);
 
-        const label = document.createElement("span");
+        const label = document.createElement("h1");
         label.textContent = title;
         card.appendChild(label);
 
         if (subtitle) {
-            const sub = document.createElement("span");
+            const sub = document.createElement("h2");
             sub.textContent = subtitle;
-            sub.style.fontSize = "0.8rem";
-            sub.style.color = "rgba(0,0,0,0.6)";
             card.appendChild(sub);
         }
 
@@ -554,8 +569,6 @@ window.addEventListener('load', () => {
     }
 
     document.addEventListener("keydown", (event) => {
-        if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey)
-            return;
         const target = event.target;
         if (target instanceof HTMLElement) {
             const tagName = target.tagName;
@@ -563,15 +576,57 @@ window.addEventListener('load', () => {
                 return;
         }
         const key = event.key.toLowerCase();
-        if (key === "n") {
+        if (!event.ctrlKey && !event.shiftKey) {
+            if (key == "e") {
+                for (let cloth of cloths) {
+                    cloth.brushStyle = BrushType.Erase;
+                }
+                document.querySelector("#tool-row button.selected")?.classList.remove("selected");
+                document.querySelector(`#tool-row button[data-tool="${cloths[0].brushStyle}"]`)?.classList.add("selected");
+            } else if (key == "f") {
+                for (let cloth of cloths) {
+                    cloth.brushStyle = BrushType.Fill;
+                }
+                document.querySelector("#tool-row button.selected")?.classList.remove("selected");
+                document.querySelector(`#tool-row button[data-tool="${cloths[0].brushStyle}"]`)?.classList.add("selected");
+            } else if (key == "c") {
+                for (let cloth of cloths) {
+                    cloth.brushStyle = BrushType.Circle;
+                }
+                document.querySelector("#tool-row button.selected")?.classList.remove("selected");
+                document.querySelector(`#tool-row button[data-tool="${cloths[0].brushStyle}"]`)?.classList.add("selected");
+            } else if (key == "s") {
+                for (let cloth of cloths) {
+                    cloth.brushStyle = BrushType.Square;
+                }
+                document.querySelector("#tool-row button.selected")?.classList.remove("selected");
+                document.querySelector(`#tool-row button[data-tool="${cloths[0].brushStyle}"]`)?.classList.add("selected");
+            } else if (key == "r") {
+                for (let cloth of cloths) {
+                    cloth.brushStyle = BrushType.Picker;
+                }
+                document.querySelector("#tool-row button.selected")?.classList.remove("selected");
+                document.querySelector(`#tool-row button[data-tool="${cloths[0].brushStyle}"]`)?.classList.add("selected");
+            }
+        }
+
+        if (event.ctrlKey && key === "n") {
             event.preventDefault();
             handleNewModel();
-        } else if (key === "s") {
+        } else if (event.ctrlKey && key === "s") {
             event.preventDefault();
             handleSaveModel();
-        } else if (key === "o") {
+        } else if (event.ctrlKey && key === "o") {
             event.preventDefault();
             handleOpenDialog();
+        } else if ((event.ctrlKey && key === "y") || (event.ctrlKey && event.shiftKey && key == "z")) {
+            event.preventDefault();
+            if (activeCloth)
+                activeCloth.redo();
+        } else if (event.ctrlKey && key === "z") {
+            event.preventDefault();
+            if (activeCloth)
+                activeCloth.undo();
         }
     });
 

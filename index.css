@@ -7,7 +7,7 @@
     --tab-label-color: #EEE;
     --selected-tab-color: #EEC;
     --roundness: 8px;
-    --button-roundness: 2px;
+    --button-roundness: 10px;
     --progress: 0%;
 }
 body {
@@ -57,7 +57,7 @@ label[disabled] {
 #controls #tool-row {
     display: grid;
     /* justify-content: space-between; */
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
     align-items: center;
 }
@@ -319,7 +319,7 @@ dialog h3 {
 }
 
 dialog .dialog-close {
-    border-radius: 50%;
+    border-radius: calc(var(--roundness) * 10);
     width: 32px;
     height: 32px;
     padding: 8px;
@@ -347,7 +347,7 @@ dialog form {
 
 .file-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
 }
 .file-grid-card {
@@ -372,20 +372,24 @@ dialog form {
 
 .file-grid-card img {
     width: 100%;
-    height: 100px;
     object-fit: contain;
     border-radius: var(--button-roundness);
     background: white;
     border: 1px solid gray;
 }
 
-.file-grid-card span {
+.file-grid-card h1, .file-grid-card h2 {
     font-size: 0.95rem;
     text-align: center;
+    margin: 0px;
+}
+.file-grid-card h2 {
+    font-size: 0.6rem;
+    color: rgba(0,0,0,0.6);
 }
 
 .file-grid-card button {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .empty-state {
@@ -418,6 +422,7 @@ dialog #file-section .file-name {
 
 #save-dialog .save-preview img {
     width: 100%;
+    height: 100%;
     object-fit: contain;
     border-radius: var(--button-roundness);
     background: white;
