@@ -838,10 +838,11 @@ window.addEventListener('load', () => {
 
         const gpuCompute = new GPUComputationRenderer(256, 256, renderer);
         const test = gpuCompute.createShaderMaterial(`
-uniform sampler2D frontViews[${LAYER_COUNT}];
-uniform sampler2D sideViews[${LAYER_COUNT}];
-uniform sampler2D topViews[${LAYER_COUNT}];
-uniform float layerVisibility[${LAYER_COUNT}];
+precision mediump usampler2D;
+uniform usampler2D frontViews[${LAYER_COUNT/4}];
+uniform usampler2D sideViews[${LAYER_COUNT/4}];
+uniform usampler2D topViews[${LAYER_COUNT/4}];
+uniform int layerVisibility[${LAYER_COUNT}];
 uniform int layer;
 
 ${sampleVolumeSnippet}
@@ -850,7 +851,7 @@ void main() {
     vec2 uv = gl_FragCoord.xy / resolution.xy;
 
     vec3 p = vec3(uv.x, float(layer)/255.0, uv.y);
-    gl_FragColor = sampleVolume(p);
+    gl_FragColor = sampleVolume(vec3(p.x, 1.0 - p.y, p.z));
 }
 `, {
     layer: { value: null },
