@@ -46,7 +46,7 @@ self.addEventListener('message', (event) => {
             if (!voxInstance)
                 return;
             const blob = voxInstance.toBlob();
-            self.postMessage({ type: 'done', blob, filename: payload.filename ?? 'export.vox' });
+            self.postMessage({ type: 'done', blob, filename: `${payload.filename}.vox` ?? 'export.vox' });
             voxInstance = null;
             processedLayers = 0;
             totalLayers = 0;

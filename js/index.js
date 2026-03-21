@@ -573,6 +573,7 @@ window.addEventListener('load', () => {
     const exportParamsPanels = [...document.querySelectorAll(".export-params")];
     const exportBlurRadiusInput = document.getElementById("export-blur-radius");
     const exportBlurIterationsInput = document.getElementById("export-blur-iterations");
+    const exportVertexColorsInput = document.getElementById("export-vertex-colors");
 
     openDialogButton.addEventListener("click", async () => {
         renderExamples();
@@ -832,10 +833,10 @@ window.addEventListener('load', () => {
         const selectedFormat = exportFormatInputs.find((input) => input.checked)?.value ?? "vox";
         const blurRadius = parseInt(exportBlurRadiusInput.value, 10) || 0;
         const blurIterations = parseInt(exportBlurIterationsInput.value, 10) || 0;
+        const vertexColors = exportVertexColorsInput.checked;
 
         const worker = selectedFormat === "vox" ? ExportVoxWorker() : ExportMCWorker();
-        const exportBaseName = normalizeModelName(currentFileName);
-        const exportFilename = `${exportBaseName}.${selectedFormat}`;
+        const exportFilename = normalizeModelName(currentFileName);
 
         const initPayload = {
             type: "init",
@@ -932,6 +933,7 @@ void main() {
                 filename: exportFilename,
                 blurRadius,
                 blurIterations,
+                useTexture: !vertexColors
             };
         worker.postMessage(finalizePayload);
     }

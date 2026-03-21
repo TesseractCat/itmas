@@ -1,4 +1,5 @@
 import { polygonise } from './marchingCubes.js';
+import JSZip from 'jszip';
 
 let densityField = null;
 let colorField = null;
@@ -73,10 +74,10 @@ function handleLayer(payload) {
 
     processedLayers++;
     const percent = totalLayers > 0 ? Math.round((processedLayers / totalLayers) * 100) : 100;
-    postProgress(percent/25, "layers");
+    postProgress(percent / 25, "layers");
 }
 
-function finalizeField(payload) {
+async function finalizeField(payload) {
     if (!densityField)
         return;
 
@@ -84,7 +85,9 @@ function finalizeField(payload) {
         const blurRadius = clamp(Math.floor(payload.blurRadius ?? DEFAULT_BLUR_RADIUS), 0, 8);
         const blurIterations = clamp(Math.floor(payload.blurIterations ?? DEFAULT_BLUR_ITERATIONS), 0, 8);
         const isolation = typeof payload.isolation === 'number' ? payload.isolation : DEFAULT_ISOLATION;
-        const filename = payload.filename ?? 'export.obj';
+        const useTexture = Boolean(payload.useTexture); // Determine mode
+        
+        const baseFilename = payload.filename ?? 'export';
 
         if (blurRadius > 0 && blurIterations > 0) {
             applyBoxBlur(densityField, fieldResolution, blurRadius, blurIterations);
@@ -92,19 +95,55 @@ function finalizeField(payload) {
             postProgress(75, "blur");
         }
 
-        const objText = buildObjFromField(
+        const result = buildObjFromField(
             densityField,
             colorField,
             fieldResolution,
-            isolation
+            isolation,
+            baseFilename,
+            useTexture
         );
 
+        let textureBlob = null;
+        let mtlBlob = null;
+
+        // If texture mode is enabled, generate the image/mtl blobs
+        if (result.useTexture) {
+            if (typeof OffscreenCanvas !== 'undefined') {
+                const canvas = new OffscreenCanvas(result.texture.width, result.texture.height);
+                const ctx = canvas.getContext('2d');
+                const imgData = new ImageData(result.texture.pixels, result.texture.width, result.texture.height);
+                ctx.putImageData(imgData, 0, 0);
+                textureBlob = await canvas.convertToBlob({ type: 'image/png' });
+            }
+            mtlBlob = new Blob([result.mtlText], { type: 'text/plain' });
+        }
+
         postProgress(100, "finalize");
-        self.postMessage({
-            type: 'done',
-            filename,
-            blob: new Blob([objText], { type: 'text/plain' }),
-        });
+        
+        // Prepare base response
+        if (!result.useTexture) {
+            const response = {
+                type: 'done',
+                filename: `${baseFilename}.obj`,
+                blob: new Blob([result.objText], { type: 'text/plain' }),
+                useTexture: result.useTexture
+            };
+            self.postMessage(response);
+        } else {
+            let zip = new JSZip();
+            zip.file("model.obj", new Blob([result.objText], { type: 'text/plain' }));
+            zip.file("model.mtl", new Blob([result.mtlText], { type: 'text/plain' }));
+            zip.file("palette.png", new Blob([textureBlob], { type: 'image/png' }));
+            zip.generateAsync({type:"blob"}).then(async (blob) => {
+                const response = {
+                    type: 'done',
+                    filename: `${baseFilename}.zip`,
+                    blob: blob,
+                };
+                self.postMessage(response);
+            });
+        }
     } finally {
         densityField = null;
         colorField = null;
@@ -118,8 +157,6 @@ function applyBoxBlur(density, resolution, radius, iterations) {
     const length = density.length;
     const scratchDensity = new Float32Array(length);
     
-    // A separable box blur implies a cubic neighborhood. 
-    // The total volume evaluated is (2r + 1)^3.
     const windowSize = radius * 2 + 1;
     const volume = windowSize * windowSize * windowSize;
     const scale = 1 / volume;
@@ -127,37 +164,22 @@ function applyBoxBlur(density, resolution, radius, iterations) {
     const res = resolution;
     const res2 = res * res;
 
-    // Helper function to perform a 1D sliding window blur pass
     function blurPass(src, dst, stride, stepA, stepB, passScale) {
         for (let a = 0; a < res; a++) {
             for (let b = 0; b < res; b++) {
                 const startIdx = a * stepA + b * stepB;
                 let sum = 0;
 
-                // 1. Initialize the sliding window sum (from -radius to radius)
                 for (let i = -radius; i <= radius; i++) {
-                    if (i >= 0 && i < res) {
-                        sum += src[startIdx + i * stride];
-                    }
+                    if (i >= 0 && i < res) sum += src[startIdx + i * stride];
                 }
 
-                // 2. Slide the window across the axis
                 for (let i = 0; i < res; i++) {
-                    // Write the averaged result
                     dst[startIdx + i * stride] = sum * passScale;
-
-                    // Calculate indices for the element leaving and entering the window
                     const leaving = i - radius;
                     const entering = i + radius + 1;
-
-                    // Subtract the value that falls out of the window
-                    if (leaving >= 0) {
-                        sum -= src[startIdx + leaving * stride];
-                    }
-                    // Add the new value that enters the window
-                    if (entering < res) {
-                        sum += src[startIdx + entering * stride];
-                    }
+                    if (leaving >= 0) sum -= src[startIdx + leaving * stride];
+                    if (entering < res) sum += src[startIdx + entering * stride];
                 }
             }
         }
@@ -169,45 +191,69 @@ function applyBoxBlur(density, resolution, radius, iterations) {
     };
 
     for (let iteration = 0; iteration < iterations; iteration++) {
-        // Pass 1: Blur along X-axis
-        // stride = 1 (X), stepA = res (Y), stepB = res2 (Z)
         blurPass(density, scratchDensity, 1, res, res2, 1);
         reportProgress(iteration, 0.33);
 
-        // Pass 2: Blur along Y-axis
-        // stride = res (Y), stepA = 1 (X), stepB = res2 (Z)
-        // Note: Safe to overwrite `density` here because Pass 1 data is safe in `scratchDensity`
         blurPass(scratchDensity, density, res, 1, res2, 1);
         reportProgress(iteration, 0.67);
 
-        // Pass 3: Blur along Z-axis
-        // stride = res2 (Z), stepA = 1 (X), stepB = res (Y)
         blurPass(density, scratchDensity, res2, 1, res, scale);
         reportProgress(iteration, 1.0);
 
-        // Synchronize buffers for the next iteration / final output
         density.set(scratchDensity);
     }
 }
 
-function buildObjFromField(density, colors, resolution, isolevel) {
-    const vertices = [];
-    const faces = [];
+function buildObjFromField(density, colors, resolution, isolevel, baseFilename, useTexture) {
+    const vertices =[];
+    const faces =[];
     const vertCache = new Map();
+    
+    // Texture-specific data structures
+    const uniqueColors = [];
+    const colorToIndex = new Map();
+    const vertexColorIndices =[];
 
-    function keyForVertex(v, color) {
-        return `${v.x.toFixed(5)}:${v.y.toFixed(5)}:${v.z.toFixed(5)}:${color.r.toFixed(4)}:${color.g.toFixed(4)}:${color.b.toFixed(4)}`;
+    function getColorIndex(color) {
+        const r = clamp(Math.round(color.r * 255), 0, 255);
+        const g = clamp(Math.round(color.g * 255), 0, 255);
+        const b = clamp(Math.round(color.b * 255), 0, 255);
+        const key = `${r},${g},${b}`;
+        
+        let idx = colorToIndex.get(key);
+        if (idx === undefined) {
+            idx = uniqueColors.length;
+            uniqueColors.push({ r, g, b });
+            colorToIndex.set(key, idx);
+        }
+        return idx;
+    }
+
+    function keyForVertex(v, cacheParam) {
+        if (useTexture) {
+            return `${v.x.toFixed(5)}:${v.y.toFixed(5)}:${v.z.toFixed(5)}:${cacheParam}`; // cacheParam is colorIdx
+        } else {
+            return `${v.x.toFixed(5)}:${v.y.toFixed(5)}:${v.z.toFixed(5)}:${cacheParam.r.toFixed(4)}:${cacheParam.g.toFixed(4)}:${cacheParam.b.toFixed(4)}`;
+        }
     }
 
     function addVertex(v, color) {
-        const key = keyForVertex(v, color);
+        const cacheParam = useTexture ? getColorIndex(color) : color;
+        const key = keyForVertex(v, cacheParam);
+        
         const existing = vertCache.get(key);
-        if (existing)
-            return existing;
+        if (existing) return existing;
+        
         const index = vertices.length + 1;
-        vertices.push(
-            `v ${v.x.toFixed(5)} ${v.z.toFixed(5)} ${v.y.toFixed(5)} ${color.r.toFixed(4)} ${color.g.toFixed(4)} ${color.b.toFixed(4)}`
-        );
+        
+        if (useTexture) {
+            vertices.push(`v ${v.x.toFixed(5)} ${v.z.toFixed(5)} ${v.y.toFixed(5)}`);
+            vertexColorIndices.push(cacheParam);
+        } else {
+            // Standard Vertex Colors
+            vertices.push(`v ${v.x.toFixed(5)} ${v.z.toFixed(5)} ${v.y.toFixed(5)} ${color.r.toFixed(4)} ${color.g.toFixed(4)} ${color.b.toFixed(4)}`);
+        }
+        
         vertCache.set(key, index);
         return index;
     }
@@ -272,38 +318,34 @@ function buildObjFromField(density, colors, resolution, isolevel) {
             for (let x = -1; x < resolution; x++) {
                 const cell = { x, y, z };
                 const grid = {
-                    p: [
-                        vertexFromCell(cell, 0),
-                        vertexFromCell(cell, 1),
-                        vertexFromCell(cell, 3),
-                        vertexFromCell(cell, 2),
-                        vertexFromCell(cell, 4),
-                        vertexFromCell(cell, 5),
-                        vertexFromCell(cell, 7),
-                        vertexFromCell(cell, 6),
+                    p:[
+                        vertexFromCell(cell, 0), vertexFromCell(cell, 1),
+                        vertexFromCell(cell, 3), vertexFromCell(cell, 2),
+                        vertexFromCell(cell, 4), vertexFromCell(cell, 5),
+                        vertexFromCell(cell, 7), vertexFromCell(cell, 6),
                     ],
-                    val: [
-                        sampleDensity(x, y, z),
-                        sampleDensity(x + 1, y, z),
-                        sampleDensity(x + 1, y + 1, z),
-                        sampleDensity(x, y + 1, z),
-                        sampleDensity(x, y, z + 1),
-                        sampleDensity(x + 1, y, z + 1),
-                        sampleDensity(x + 1, y + 1, z + 1),
-                        sampleDensity(x, y + 1, z + 1),
+                    val:[
+                        sampleDensity(x, y, z), sampleDensity(x + 1, y, z),
+                        sampleDensity(x + 1, y + 1, z), sampleDensity(x, y + 1, z),
+                        sampleDensity(x, y, z + 1), sampleDensity(x + 1, y, z + 1),
+                        sampleDensity(x + 1, y + 1, z + 1), sampleDensity(x, y + 1, z + 1),
                     ],
                 };
 
                 const triangles = polygonise(grid, isolevel);
-                if (!triangles.length)
-                    continue;
+                if (!triangles.length) continue;
 
                 for (const tri of triangles) {
                     const indices = tri.map((v) => {
                         const color = sampleColorStochastic(v.x, v.y, v.z);
                         return addVertex(v, color);
                     });
-                    faces.push(`f ${indices[0]} ${indices[1]} ${indices[2]}`);
+                    
+                    if (useTexture) {
+                        faces.push(`f ${indices[0]}/${indices[0]} ${indices[1]}/${indices[1]} ${indices[2]}/${indices[2]}`);
+                    } else {
+                        faces.push(`f ${indices[0]} ${indices[1]} ${indices[2]}`);
+                    }
                 }
             }
         }
@@ -311,11 +353,54 @@ function buildObjFromField(density, colors, resolution, isolevel) {
         postProgress(Math.min(99, mcPercent), "marching");
     }
 
-    return `${vertices.join('\n')}\n${faces.join('\n')}\n`;
+    // --- Output standard format ---
+    if (!useTexture) {
+        return {
+            objText: `${vertices.join('\n')}\n${faces.join('\n')}\n`,
+            useTexture: false
+        };
+    }
+
+    // --- Output Texture/UV mapped format ---
+    const numColors = Math.max(1, uniqueColors.length);
+    const texSize = Math.max(2, Math.pow(2, Math.ceil(Math.log2(Math.ceil(Math.sqrt(numColors))))));
+    
+    const uvs =[];
+    for (let i = 0; i < vertexColorIndices.length; i++) {
+        const colorIdx = vertexColorIndices[i];
+        const u = ((colorIdx % texSize) + 0.5) / texSize;
+        const v = 1.0 - ((Math.floor(colorIdx / texSize) + 0.5) / texSize); 
+        uvs.push(`vt ${u.toFixed(5)} ${v.toFixed(5)}`);
+    }
+
+    const texData = new Uint8ClampedArray(texSize * texSize * 4);
+    for (let i = 0; i < uniqueColors.length; i++) {
+        const idx = i * 4;
+        const c = uniqueColors[i];
+        texData[idx + 0] = c.r;
+        texData[idx + 1] = c.g;
+        texData[idx + 2] = c.b;
+        texData[idx + 3] = 255;
+    }
+
+    const mtlText = `newmtl Default\nKa 1.000 1.000 1.000\nKd 1.000 1.000 1.000\nKs 0.000 0.000 0.000\nmap_Kd palette.png\n`;
+    const objText = `mtllib ${baseFilename}.mtl\nusemtl Default\n` + 
+                    `${vertices.join('\n')}\n${uvs.join('\n')}\n${faces.join('\n')}\n`;
+
+    return {
+        objText,
+        mtlText,
+        useTexture: true,
+        texture: {
+            width: texSize,
+            height: texSize,
+            pixels: texData
+        }
+    };
 }
 
 function buildOffsets(radius) {
-    const offsets = [];
+    const offsets =[];
     for (let dz = -radius; dz <= radius; dz++) {
         for (let dy = -radius; dy <= radius; dy++) {
             for (let dx = -radius; dx <= radius; dx++) {
