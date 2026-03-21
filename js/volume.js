@@ -265,13 +265,14 @@ void main() {
     float density = 128.0;
     float rl = distance(a, b)/1.73; // ray length 0-1 with the maximum length being cube diagonal
     int steps = clamp(int(rl * density), 2, 128);
+    steps = int(ceil(float(steps)/16.0))*16; // Quantize to minimize divergence
 
     vec3 stepVector = (b - a) / float(steps);
     float jitter = rand(gl_FragCoord.xy);
     vec3 p = a + (stepVector * jitter);
 
-    // gl_FragColor = vec4(vec3(float(steps)/128.0), 1.0);
-    // return;
+    //gl_FragColor = vec4(vec3(float(steps)/128.0), 1.0);
+    //return;
 
     for (int i = 0; i < 128; i++) {
         if (i >= steps) break;

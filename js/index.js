@@ -127,7 +127,9 @@ window.addEventListener('load', () => {
         requestAnimationFrame(render);
         
         controls.update();
+        // let startTime = performance.now()
         renderer.render(scene, camera);
+        // console.log(performance.now() - startTime);
     }
     render();
 
@@ -813,7 +815,7 @@ window.addEventListener('load', () => {
     document.getElementById("export").addEventListener("click", async () => {
         const buttons = disableButtons();
 
-        const worker = ExportVoxWorker();
+        const worker = ExportMCWorker();
 
         worker.postMessage({ type: "init", totalLayers: 256 });
 
@@ -896,7 +898,7 @@ void main() {
             }, [pixels.buffer]);
         }
 
-        worker.postMessage({ type: "finalize", filename: "export.vox" });
+        worker.postMessage({ type: "finalize", filename: "export.obj" });
     });
 
 //     document.getElementById("export-mc").addEventListener("click", async () => {
@@ -982,7 +984,13 @@ void main() {
 //         worker.postMessage({ type: "finalize", filename: "export.gltf" });
 //     });
 
-
+    function updateLayerVisibilityUniform() {
+        const visibility = Array(LAYER_COUNT).fill(1);
+        for (let i = 0; i < LAYER_COUNT; i++) {
+            visibility[i] = cloths[0].getLayerVisibility(i) ? 1 : 0;
+        }
+        volumeMaterial.uniforms.layerVisibility.value = visibility;
+    }
 
     [...document.getElementsByTagName("itmas-layer")].forEach((layerTab) => {
         loadingLayers = false;
@@ -1016,14 +1024,6 @@ void main() {
         frontViews: views[1],
         sideViews: views[2],
     });
-
-    function updateLayerVisibilityUniform() {
-        const visibility = Array(LAYER_COUNT).fill(1);
-        for (let i = 0; i < LAYER_COUNT; i++) {
-            visibility[i] = cloths[0].getLayerVisibility(i) ? 1 : 0;
-        }
-        volumeMaterial.uniforms.layerVisibility.value = visibility;
-    }
     const volume = new Mesh(volumeGeometry, volumeMaterial);
     scene.add(volume);
     updateLayerVisibilityUniform();
