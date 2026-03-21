@@ -110,7 +110,39 @@
         </section>
         <footer class="dialog-actions">
           <button value="cancel" formnovalidate type="button">Cancel</button>
-          <button type="submit" id="save-dialog-confirm" value="save">Save</button>
+          <button type="submit" value="save">Save</button>
+        </footer>
+      </form>
+    </dialog>
+    <dialog id="export-dialog">
+      <form method="dialog">
+        <header>
+          <h2>Export</h2>
+          <button type="button" class="dialog-close" value="cancel" formnovalidate aria-label="Close"><img src="icons/xmark-solid-full.svg"></button>
+        </header>
+        <section>
+          <fieldset class="export-format">
+            <legend>Format</legend>
+            <label>
+              <input type="radio" name="export-format" value="vox" checked>
+              MagicaVoxel (.vox)
+            </label>
+            <label>
+              <input type="radio" name="export-format" value="obj">
+              Marching Cubes (.obj)
+            </label>
+          </fieldset>
+          <fieldset class="export-params" data-export-format="obj">
+            <legend>Marching Cubes Options</legend>
+            <label for="export-blur-radius">Blur radius</label>
+            <input id="export-blur-radius" type="number" min="0" max="8" step="1" value="2">
+            <label for="export-blur-iterations">Blur iterations</label>
+            <input id="export-blur-iterations" type="number" min="0" max="8" step="1" value="1">
+          </fieldset>
+        </section>
+        <footer class="dialog-actions">
+          <button value="cancel" formnovalidate type="button">Cancel</button>
+          <button type="submit" value="export">Export</button>
         </footer>
       </form>
     </dialog>

@@ -465,3 +465,33 @@ dialog #file-section .file-name {
     font-size: 0.9rem;
     color: rgba(0,0,0,0.6);
 }
+
+#export-dialog .export-format {
+    border: 1px solid rgba(0,0,0,0.2);
+    border-radius: var(--roundness);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#export-dialog .export-params {
+    border: 1px solid rgba(0,0,0,0.2);
+    border-radius: var(--roundness);
+    padding: 10px;
+    display: grid;
+    grid-template-columns: 1fr 120px;
+    gap: 6px 12px;
+    align-items: center;
+}
+
+#export-dialog .export-params legend {
+    font-size: 0.95rem;
+}
+
+#export-dialog .export-params input {
+    width: 100%;
+    padding: 4px 6px;
+    border-radius: var(--button-roundness);
+    border: 1px solid rgba(0,0,0,0.4);
+}

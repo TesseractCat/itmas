@@ -568,6 +568,11 @@ window.addEventListener('load', () => {
     const saveDialog = document.getElementById("save-dialog");
     const saveDialogName = document.getElementById("save-name");
     const saveDialogThumbnail = document.getElementById("save-thumbnail");
+    const exportDialog = document.getElementById("export-dialog");
+    const exportFormatInputs = [...document.querySelectorAll("input[name='export-format']")];
+    const exportParamsPanels = [...document.querySelectorAll(".export-params")];
+    const exportBlurRadiusInput = document.getElementById("export-blur-radius");
+    const exportBlurIterationsInput = document.getElementById("export-blur-iterations");
 
     openDialogButton.addEventListener("click", async () => {
         renderExamples();
@@ -726,12 +731,22 @@ window.addEventListener('load', () => {
         });
     });
 
-    saveDialog.addEventListener("cancel", () => {
-        saveDialog.returnValue = "cancel";
+    function updateExportParamsVisibility() {
+        const selectedFormat = exportFormatInputs.find((input) => input.checked)?.value;
+        exportParamsPanels.forEach((panel) => {
+            const isActive = panel.dataset.exportFormat === selectedFormat;
+            panel.disabled = !isActive;
+        });
+    }
+
+    exportFormatInputs.forEach((input) => {
+        input.addEventListener("change", updateExportParamsVisibility);
     });
 
+    updateExportParamsVisibility();
+
     saveDialog.addEventListener("close", async () => {
-        if (saveDialog.returnValue == "cancel" || !pendingSaveData) {
+        if (saveDialog.returnValue !== "save" || !pendingSaveData) {
             pendingSaveData = null;
             return;
         }
@@ -812,12 +827,22 @@ window.addEventListener('load', () => {
         buttons.forEach((elem) => elem.removeAttribute('disabled'));
     }
 
-    document.getElementById("export").addEventListener("click", async () => {
+    async function handleExportSubmit() {
         const buttons = disableButtons();
+        const selectedFormat = exportFormatInputs.find((input) => input.checked)?.value ?? "vox";
+        const blurRadius = parseInt(exportBlurRadiusInput.value, 10) || 0;
+        const blurIterations = parseInt(exportBlurIterationsInput.value, 10) || 0;
 
-        const worker = ExportMCWorker();
+        const worker = selectedFormat === "vox" ? ExportVoxWorker() : ExportMCWorker();
+        const exportBaseName = normalizeModelName(currentFileName);
+        const exportFilename = `${exportBaseName}.${selectedFormat}`;
 
-        worker.postMessage({ type: "init", totalLayers: 256 });
+        const initPayload = {
+            type: "init",
+            totalLayers: 256,
+        };
+
+        worker.postMessage(initPayload);
 
         worker.addEventListener("message", (event) => {
             const message = event.data;
@@ -825,7 +850,8 @@ window.addEventListener('load', () => {
                 return;
             if (message.type === "progress") {
                 document.documentElement.style.setProperty("--progress", `${message.percent}%`);
-                console.log(`[Export]: ${message.stage} ${message.percent}%`)
+                if (message.stage)
+                    console.log(`[Export]: ${message.stage} ${message.percent}%`)
             } else if (message.type === "done") {
                 saveAs(message.blob, message.filename);
                 enableButtons(buttons);
@@ -899,7 +925,25 @@ void main() {
             }, [pixels.buffer]);
         }
 
-        worker.postMessage({ type: "finalize", filename: "export.obj" });
+        const finalizePayload = selectedFormat === "vox"
+            ? { type: "finalize", filename: exportFilename }
+            : {
+                type: "finalize",
+                filename: exportFilename,
+                blurRadius,
+                blurIterations,
+            };
+        worker.postMessage(finalizePayload);
+    }
+
+    document.getElementById("export").addEventListener("click", () => {
+        exportDialog.showModal();
+    });
+
+    exportDialog.addEventListener("close", () => {
+        if (exportDialog.returnValue !== "export")
+            return;
+        handleExportSubmit();
     });
 
 //     document.getElementById("export-mc").addEventListener("click", async () => {
