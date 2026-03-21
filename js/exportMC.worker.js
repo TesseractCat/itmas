@@ -206,7 +206,7 @@ function buildObjFromField(density, colors, resolution, isolevel) {
             return existing;
         const index = vertices.length + 1;
         vertices.push(
-            `v ${v.x.toFixed(5)} ${v.y.toFixed(5)} ${v.z.toFixed(5)} ${color.r.toFixed(4)} ${color.g.toFixed(4)} ${color.b.toFixed(4)}`
+            `v ${v.x.toFixed(5)} ${v.z.toFixed(5)} ${v.y.toFixed(5)} ${color.r.toFixed(4)} ${color.g.toFixed(4)} ${color.b.toFixed(4)}`
         );
         vertCache.set(key, index);
         return index;
@@ -220,6 +220,13 @@ function buildObjFromField(density, colors, resolution, isolevel) {
         if (ix < 0 || iy < 0 || iz < 0 || ix >= resolution || iy >= resolution || iz >= resolution)
             return 0;
         return density[sampleIndex(ix, iy, iz)];
+    }
+
+    function vertexFromCell(cell, index) {
+        const x = cell.x + (index & 1);
+        const y = cell.y + ((index & 2) >> 1);
+        const z = cell.z + ((index & 4) >> 2);
+        return { x, y, z };
     }
 
     function sampleColorStochastic(x, y, z, maxSteps = 32) {
@@ -260,19 +267,20 @@ function buildObjFromField(density, colors, resolution, isolevel) {
         return { r: 0, g: 0, b: 0 };
     }
 
-    for (let z = 0; z < resolution - 1; z++) {
-        for (let y = 0; y < resolution - 1; y++) {
-            for (let x = 0; x < resolution - 1; x++) {
+    for (let z = -1; z < resolution; z++) {
+        for (let y = -1; y < resolution; y++) {
+            for (let x = -1; x < resolution; x++) {
+                const cell = { x, y, z };
                 const grid = {
                     p: [
-                        { x, y, z },
-                        { x: x + 1, y, z },
-                        { x: x + 1, y: y + 1, z },
-                        { x, y: y + 1, z },
-                        { x, y, z: z + 1 },
-                        { x: x + 1, y, z: z + 1 },
-                        { x: x + 1, y: y + 1, z: z + 1 },
-                        { x, y: y + 1, z: z + 1 },
+                        vertexFromCell(cell, 0),
+                        vertexFromCell(cell, 1),
+                        vertexFromCell(cell, 3),
+                        vertexFromCell(cell, 2),
+                        vertexFromCell(cell, 4),
+                        vertexFromCell(cell, 5),
+                        vertexFromCell(cell, 7),
+                        vertexFromCell(cell, 6),
                     ],
                     val: [
                         sampleDensity(x, y, z),
@@ -299,7 +307,7 @@ function buildObjFromField(density, colors, resolution, isolevel) {
                 }
             }
         }
-        const mcPercent = 75 + Math.round(((z + 1) / Math.max(1, resolution - 1)) * 25);
+        const mcPercent = 75 + Math.round(((z + 2) / Math.max(1, resolution + 1)) * 25);
         postProgress(Math.min(99, mcPercent), "marching");
     }
 
