@@ -336,11 +336,17 @@ function buildObjFromField(density, colors, resolution, isolevel, baseFilename, 
                 if (!triangles.length) continue;
 
                 for (const tri of triangles) {
-                    const indices = tri.map((v) => {
-                        const color = sampleColorStochastic(v.x, v.y, v.z);
-                        return addVertex(v, color);
-                    });
-                    
+                    let indices = [];
+                    if (useTexture) {
+                        const flatColor = sampleColorStochastic(tri[0].x, tri[0].y, tri[0].z);
+                        indices = tri.map((v) => addVertex(v, flatColor));
+                    } else {
+                        indices = tri.map((v) => {
+                            const color = sampleColorStochastic(v.x, v.y, v.z);
+                            return addVertex(v, color);
+                        });
+                    }
+
                     if (useTexture) {
                         faces.push(`f ${indices[0]}/${indices[0]} ${indices[1]}/${indices[1]} ${indices[2]}/${indices[2]}`);
                     } else {

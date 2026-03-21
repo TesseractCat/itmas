@@ -32,7 +32,7 @@ import ExportMCWorker from './exportMC.worker.js';
 // TODO:
 //  - Favicon/meta tags
 // more layers?, tablet?
-// export dialog, fixed marching cubes export
+// fixed marching cubes export
 // steam page
 //  - Jump Flood/SDF:
 //      - Shading/normals
