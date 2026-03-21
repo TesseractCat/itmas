@@ -825,6 +825,7 @@ window.addEventListener('load', () => {
                 return;
             if (message.type === "progress") {
                 document.documentElement.style.setProperty("--progress", `${message.percent}%`);
+                console.log(`[Export]: ${message.stage} ${message.percent}%`)
             } else if (message.type === "done") {
                 saveAs(message.blob, message.filename);
                 enableButtons(buttons);

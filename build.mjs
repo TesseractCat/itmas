@@ -6,7 +6,7 @@ import path from 'path';
 
 const outdir = 'dist';
 const isWatch = process.argv.includes('--watch');
-const staticEntries = ['index.html', 'index.css', 'bundle.js.map', 'icons', 'images', 'models'];
+const staticEntries = ['index.html', 'index.css', 'icons', 'images', 'models'];
 
 async function copyStaticEntry(entry) {
     try {
