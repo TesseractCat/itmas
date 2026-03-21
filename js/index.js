@@ -31,7 +31,7 @@ import ExportMCWorker from './exportMC.worker.js';
 
 // TODO:
 //  - Favicon/meta tags
-// rename text input, more layers?, tablet?
+// more layers?, tablet?
 // export dialog, fixed marching cubes export
 // steam page
 //  - Jump Flood/SDF:
@@ -862,7 +862,7 @@ void main() {
         test.uniforms.topViews.value = cloths[0].textures;
         test.uniforms.frontViews.value = cloths[1].textures;
         test.uniforms.sideViews.value = cloths[2].textures;
-        test.uniforms.layerVisibility.value = [1,1,1,1];
+        test.uniforms.layerVisibility.value = Array(LAYER_COUNT).fill(1);
 
         const error = gpuCompute.init();
         if (error !== null)

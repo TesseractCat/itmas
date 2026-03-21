@@ -9,41 +9,85 @@ float distSq(vec3 a, vec3 b) {
     return dot(d, d);
 }
 
+vec4 unpack_rgb16(uint color) {
+    // Transparency
+    if (color == 0u)
+        return vec4(0.0);
+
+    // Reserved black
+    if (color == 1u)
+        return vec4(0.0, 0.0, 0.0, 1.0);
+
+    uint r5 = (color >> 11) & 0x1Fu;
+    uint g6 = (color >> 5)  & 0x3Fu;
+    uint b5 = color & 0x1Fu;
+
+    // Expand to [0,1] with bit replication
+    float r = float((r5 << 3) | (r5 >> 2)) / 255.0;
+    float g = float((g6 << 2) | (g6 >> 4)) / 255.0;
+    float b = float((b5 << 3) | (b5 >> 2)) / 255.0;
+
+    return vec4(r, g, b, 1.0);
+}
+
+vec4 compare_colors(uvec4 f, uvec4 t, uvec4 s, int i) {
+    vec4 f_u = unpack_rgb16(f[i]);
+    vec4 t_u = unpack_rgb16(t[i]);
+    vec4 s_u = unpack_rgb16(s[i]);
+    vec4 result = f_u;
+
+    float thresholdSq = 0.01 * 0.01;
+    float d_fs = distSq(f_u.xyz, s_u.xyz);
+    float d_tf = distSq(t_u.xyz, f_u.xyz);
+    float d_ts = distSq(t_u.xyz, s_u.xyz);
+
+    result = mix(result, t_u, step(d_tf, thresholdSq));
+    result = mix(result, t_u, step(d_ts, thresholdSq));
+
+    float visible = float(layerVisibility[i] != 0);
+    float valid = float(all(notEqual(uvec3(t[i], f[i], s[i]), uvec3(0))));
+
+    return result * visible * valid;
+}
+
+// a on top of b if a.a > 0
+vec4 composite(vec4 a, vec4 b) {
+    return mix(b, a, a.a);
+}
+
 vec4 sampleVolume(vec3 p) { // p: (0-1, 0-1, 0-1)
-    vec4 t = vec4(0,0,0,0);
-    vec4 f = vec4(0,0,0,0);
-    vec4 s = vec4(0,0,0,0);
+    uvec4 t = uvec4(0);
+    uvec4 f = uvec4(0);
+    uvec4 s = uvec4(0);
 
-    vec4 result = vec4(0,0,0,0);
+    vec4 result = vec4(0.0);
 
-    #pragma unroll_loop_start
-    for (int i = 0; i < ${LAYER_COUNT}; i++) {
-        if (layerVisibility[i] == 1) {
+    t = texture2D(topViews[0], p.xz);
+    if (any(notEqual(t, uvec4(0)))) {
+    f = texture2D(frontViews[0], p.xy);
+    if (any(notEqual(f, uvec4(0)))) {
+    s = texture2D(sideViews[0], p.zy);
+    if (any(notEqual(s, uvec4(0)))) {
 
-        t = texture2D(topViews[i], vec2(p.x, 1.0 - p.z));
-        if (t.a > 0.5) {
-        f = texture2D(frontViews[i], p.xy);
-        if (f.a > 0.5) {
-        s = texture2D(sideViews[i], p.zy);
-        if (s.a > 0.5) {
+        result =
+            composite(
+                compare_colors(f, t, s, 0),
+                composite(
+                    compare_colors(f, t, s, 1),
+                    composite(
+                        compare_colors(f, t, s, 2),
+                        compare_colors(f, t, s, 3)
+                    )
+                )
+            );
 
-        //result = vec4((t.xyz + f.xyz + s.xyz)/3.0, 1);
-        result = vec4(f.xyz, 1);
+        //if (compare_colors(f, t, s, 0, result)) {
+        //} else if (compare_colors(f, t, s, 1, result)) {
+        //} else if (compare_colors(f, t, s, 2, result)) {
+        //} else if (compare_colors(f, t, s, 3, result)) {
+        //}
 
-        float thresholdSq = 0.01 * 0.01;
-        if (distSq(f.xyz, s.xyz) < thresholdSq)
-            result = vec4(f.xyz, 1);
-        if (distSq(t.xyz, f.xyz) < thresholdSq)
-            result = vec4(t.xyz, 1);
-        if (distSq(t.xyz, s.xyz) < thresholdSq)
-            result = vec4(t.xyz, 1);
-
-        return result;
-        }}}
-
-        }
-    }
-    #pragma unroll_loop_end
+    }}}
 
     return result;
 }
@@ -145,9 +189,10 @@ void main() {
 `
 
         this.fragmentShader = `
-uniform sampler2D topViews[${LAYER_COUNT}];
-uniform sampler2D frontViews[${LAYER_COUNT}];
-uniform sampler2D sideViews[${LAYER_COUNT}];
+precision mediump usampler2D;
+uniform usampler2D topViews[${LAYER_COUNT/4}];
+uniform usampler2D frontViews[${LAYER_COUNT/4}];
+uniform usampler2D sideViews[${LAYER_COUNT/4}];
 uniform int layerVisibility[${LAYER_COUNT}];
 
 varying vec3 v_position;
@@ -200,7 +245,6 @@ float rand(vec2 co) {
 }
 
 ${sampleVolumeSnippet}
-${sampleNormalSnippet}
 
 void main() {
     gl_FragColor = vec4(1,1,1,1);
@@ -234,7 +278,7 @@ void main() {
         p += stepVector;
         vec3 mp = p + vec3(0.5,0.5,0.5);
 
-        vec4 result = sampleVolume(mp);
+        vec4 result = sampleVolume(vec3(mp.x, 1.0 - mp.y, mp.z));
         if (result.a > 0.0) {
             gl_FragColor = result;
             gl_FragDepth = worldToDepth(p);

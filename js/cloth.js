@@ -1,5 +1,5 @@
 import { aliasedLine, aliasedCircle } from './aliased';
-import { Texture, DataTexture, Vector2 } from 'three';
+import { Texture, DataTexture, Vector2, RGBAFormat, UnsignedShortType, RGBAIntegerFormat } from 'three';
 import { LAYER_COUNT } from './volume';
 
 export const BrushType = {
@@ -146,11 +146,11 @@ class Cloth extends HTMLElement {
     brushSize = 0.5;
     brushStyle = BrushType.Circle;
 
-    textures = Array(LAYER_COUNT).fill(null).map(() => {
+    textures = Array(LAYER_COUNT/4).fill(null).map(() => {
         let t = new DataTexture(
-            new Uint8Array(256 * 256 * 4), 256, 256
+            new Uint16Array(256 * 256 * 4), 256, 256, RGBAIntegerFormat, UnsignedShortType
         );
-        t.flipY = true;
+        t.internalFormat = 'RGBA16UI';
         t.needsUpdate = true;
         return t;
     });
@@ -508,8 +508,29 @@ class Cloth extends HTMLElement {
     }
 
     invalidate(layer) {
-        this.textures[layer].image.data = this.ctx.getImageData(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
-        this.textures[layer].needsUpdate = true;
+        const l = Math.floor(layer/4);
+        function pack_rgba8(r, g, b, a) {
+            if (a === 0) return 0;
+            const r5 = (r >> 3) & 0x1F;
+            const g6 = (g >> 2) & 0x3F;
+            const b5 = (b >> 3) & 0x1F;
+            const c = (r5 << 11) | (g6 << 5) | b5;
+            if (c === 0) return 1;
+            return c;
+        }
+
+        const canvasData = this.ctx.getImageData(0, 0, this.ctx.canvas.width, this.ctx.canvas.height).data;
+        for (let i = 0; i < this.ctx.canvas.width * this.ctx.canvas.height; i++) {
+            const packed = pack_rgba8(
+                canvasData[i * 4 + 0],
+                canvasData[i * 4 + 1],
+                canvasData[i * 4 + 2],
+                canvasData[i * 4 + 3],
+            );
+            this.textures[l].image.data[i * 4 + layer] = packed;
+        }
+        
+        this.textures[l].needsUpdate = true;
 
         this.dispatchEvent(new CustomEvent("change", {
             detail: layer
