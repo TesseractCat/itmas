@@ -291,6 +291,34 @@ function buildObjFromField(density, colors, resolution, isolevel, baseFilename, 
         };
     }
 
+    function sampleColorStochastic(x, y, z, maxSteps = 32) {
+        const ix = clamp(Math.round(x), 0, resolution - 1);
+        const iy = clamp(Math.round(y), 0, resolution - 1);
+        const iz = clamp(Math.round(z), 0, resolution - 1);
+
+        const startColor = sampleColorAtIndex(ix, iy, iz);
+        if (startColor)
+            return startColor;
+
+        for (let step = 1; step <= maxSteps; step++) {
+            const distance = step;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            const dx = Math.round(distance * Math.sin(phi) * Math.cos(theta));
+            const dy = Math.round(distance * Math.sin(phi) * Math.sin(theta));
+            const dz = Math.round(distance * Math.cos(phi));
+
+            const nx = clamp(ix + dx, 0, resolution - 1);
+            const ny = clamp(iy + dy, 0, resolution - 1);
+            const nz = clamp(iz + dz, 0, resolution - 1);
+            const color = sampleColorAtIndex(nx, ny, nz);
+            if (color)
+                return color;
+        }
+
+        return null;
+    }
+
     function sampleNormalFinite(x, y, z) {
         const ix = clamp(Math.round(x), 0, resolution - 1);
         const iy = clamp(Math.round(y), 0, resolution - 1);
@@ -318,7 +346,7 @@ function buildObjFromField(density, colors, resolution, isolevel, baseFilename, 
 
         const normal = sampleNormalFinite(x, y, z);
         if (!normal)
-            return { r: 0, g: 0, b: 0 };
+            return null;
 
         let px = x;
         let py = y;
@@ -338,7 +366,14 @@ function buildObjFromField(density, colors, resolution, isolevel, baseFilename, 
                 return color;
         }
 
-        return { r: 0, g: 0, b: 0 };
+        return null;
+    }
+
+    function sampleColorWithFallback(x, y, z) {
+        const inward = sampleColorInward(x, y, z);
+        if (inward)
+            return inward;
+        return sampleColorStochastic(x, y, z) ?? { r: 0, g: 0, b: 0 };
     }
 
     for (let z = -1; z < resolution; z++) {
@@ -363,16 +398,18 @@ function buildObjFromField(density, colors, resolution, isolevel, baseFilename, 
                 const triangles = polygonise(grid, isolevel);
                 if (!triangles.length) continue;
 
+                const faceColor = sampleColorWithFallback(
+                    (cell.x + 0.5),
+                    (cell.y + 0.5),
+                    (cell.z + 0.5)
+                );
+
                 for (const tri of triangles) {
                     let indices = [];
                     if (useTexture) {
-                        const flatColor = sampleColorInward(tri[0].x, tri[0].y, tri[0].z);
-                        indices = tri.map((v) => addVertex(v, flatColor));
+                        indices = tri.map((v) => addVertex(v, faceColor));
                     } else {
-                        indices = tri.map((v) => {
-                            const color = sampleColorInward(v.x, v.y, v.z);
-                            return addVertex(v, color);
-                        });
+                        indices = tri.map((v) => addVertex(v, faceColor));
                     }
 
                     if (useTexture) {
