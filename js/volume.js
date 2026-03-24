@@ -94,22 +94,28 @@ vec4 sampleVolume(vec3 p) { // p: (0-1, 0-1, 0-1)
 `;
 
 export const sampleNormalSnippet = `
-float hash1(vec3 p) {
-    return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
-}
-
 vec3 hash3(vec3 p) {
-    return vec3(
-        hash1(p + vec3(1.0, 0.0, 0.0)),
-        hash1(p + vec3(0.0, 1.0, 0.0)),
-        hash1(p + vec3(0.0, 0.0, 1.0))
-    );
+    // floatBitsToUint perfectly preserves bits. Every unique coordinate
+    // will output a completely unique noise vector, forever.
+    uvec3 v = floatBitsToUint(p);
+    
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y * v.z; 
+    v.y += v.z * v.x; 
+    v.z += v.x * v.y;
+    v ^= v >> 16u;
+    v.x += v.y * v.z; 
+    v.y += v.z * v.x; 
+    v.z += v.x * v.y;
+    
+    // Convert back to 0.0 -> 1.0 float range
+    return vec3(v) * (1.0 / float(0xffffffffu));
 }
 
 float sampleDistanceBinary(vec3 p) { // p: (0-1, 0-1, 0-1)
     p = clamp(p, 0.0, 1.0);
 
-    uvec4 t = texture2D(topViews[0], vec2(p.x, 1.0 - p.z));
+    uvec4 t = texture2D(topViews[0], p.xz);
     uvec4 f = texture2D(frontViews[0], p.xy);
     uvec4 s = texture2D(sideViews[0], p.zy);
 
@@ -133,25 +139,43 @@ float sampleDistance(vec3 p) {
 
 // https://iquilezles.org/articles/normalsSDF/
 vec3 sampleNormal(vec3 p) {
-    const float eps = 28.0 / 256.0;
-    const vec3 dx = vec3(eps, 0.0, 0.0);
-    const vec3 dy = vec3(0.0, eps, 0.0);
-    const vec3 dz = vec3(0.0, 0.0, eps);
-    const int samples = 16;
+    // Determines the smoothness of the normals
+    const float jitterRadius = 16.0 / 256.0;
+    
+    // Determines the noisiness of the normals
+    const int samples = 32; 
+
+    // Generate random rotation per voxel to hide banding,
+    vec3 seed = round(p * 256.0 * 0.5);
+    vec3 rand = hash3(seed) * 6.28318530718; 
+    vec2 cx = vec2(cos(rand.x), sin(rand.x));
+    vec2 cy = vec2(cos(rand.y), sin(rand.y));
+    
+    // 2D rotation matrices for X and Y axes
+    mat2 rotX = mat2(cx.x, -cx.y, cx.y, cx.x);
+    mat2 rotY = mat2(cy.x, -cy.y, cy.y, cy.x);
 
     vec3 normal = vec3(0.0);
 
     #pragma unroll_loop_start
     for (int i = 0; i < samples; i++) {
-        vec3 seed = round(p * 256.0 * 0.75) + float(i) * vec3(19.1, 31.7, 47.3);
-        vec3 jitter = (hash3(seed) - 0.5) * 2.0 * eps;
-        vec3 center = clamp(p + jitter, 0.0, 1.0);
+        float theta = 6.28318530718 * float(i) / 1.61803398875;
+        float phi = acos(1.0 - 2.0 * (float(i) + 0.5) / float(samples));
 
-        float sx = sampleDistanceBinary(center + dx) - sampleDistanceBinary(center - dx);
-        float sy = sampleDistanceBinary(center + dy) - sampleDistanceBinary(center - dy);
-        float sz = sampleDistanceBinary(center + dz) - sampleDistanceBinary(center - dz);
+        vec3 dir = vec3(sin(phi) * cos(theta), sin(phi) * sin(theta), cos(phi));
 
-        normal += vec3(sx, sy, sz);
+        // Apply our pixel's random rotation to the lattice
+        dir.yz = rotX * dir.yz;
+        dir.xz = rotY * dir.xz;
+
+        vec3 center = clamp(p + dir * jitterRadius, 0.0, 1.0);
+
+        float s = sampleDistanceBinary(center);
+
+        if (s > 0.0)
+            normal += dir;
+        else
+            normal -= dir;
     }
     #pragma unroll_loop_end
 
@@ -299,9 +323,7 @@ void main() {
             ndl = ndl * 0.5 + 0.5;
             float ndl2 = dot(normal, normalize(lightDir2));
             ndl2 = ndl2 * 0.5 + 0.5;
-            float diff = max(ndl + ndl2 * 0.5, 0.3);
-            //diff = smoothstep(0.5, 0.6, diff);
-            //diff = max(diff, 0.8);
+            float diff = clamp(ndl + ndl2 * 0.5, 0.0, 1.0);
             gl_FragColor = vec4(result.rgb * diff, 1.0);
             //gl_FragColor = vec4(normal, 1.0);
             gl_FragDepth = worldToDepth(p);
