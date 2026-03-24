@@ -295,9 +295,12 @@ label[disabled] {
 
     transition: font-size 0.1s, opacity 0.1s;
 }
+/* #three-buttons span.active {
+    opacity: 0.4;
+} */
 #three-buttons span:hover {
     font-size: 2.2rem;
-    opacity: 0.5;
+    opacity: 0.6;
 }
 #grid #three-canvas {
     cursor: grab;

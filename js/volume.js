@@ -113,8 +113,6 @@ vec3 hash3(vec3 p) {
 }
 
 float sampleDistanceBinary(vec3 p) { // p: (0-1, 0-1, 0-1)
-    p = clamp(p, 0.0, 1.0);
-
     uvec4 t = texture2D(topViews[0], p.xz);
     uvec4 f = texture2D(frontViews[0], p.xy);
     uvec4 s = texture2D(sideViews[0], p.zy);
@@ -168,7 +166,8 @@ vec3 sampleNormal(vec3 p) {
         dir.yz = rotX * dir.yz;
         dir.xz = rotY * dir.xz;
 
-        vec3 center = clamp(p + dir * jitterRadius, 0.0, 1.0);
+        //vec3 center = clamp(p + dir * jitterRadius, 0.0, 1.0);
+        vec3 center = p + dir * jitterRadius;
 
         float s = sampleDistanceBinary(center);
 
