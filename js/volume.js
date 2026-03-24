@@ -94,63 +94,72 @@ vec4 sampleVolume(vec3 p) { // p: (0-1, 0-1, 0-1)
 `;
 
 export const sampleNormalSnippet = `
-float sampleDistance(vec3 p) { // p: (0-1, 0-1, 0-1)
-    float t = 0.0;
-    float f = 0.0;
-    float s = 0.0;
-
-    float result = 999.0;
-
-    #pragma unroll_loop_start
-    for (int i = 0; i < ${LAYER_COUNT}; i++) {
-        if (layerVisibility[i] == 1) {
-
-        t = texture2D(topViews[i], vec2(p.x, 1.0 - p.z)).a;
-        f = texture2D(frontViews[i], p.xy).a;
-        s = texture2D(sideViews[i], p.zy).a;
-
-        result = min(result, min(t, min(f, s)));
-
-        }
-    }
-    #pragma unroll_loop_end
-
-    return result;
+float hash1(vec3 p) {
+    return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
 }
-float sampleDistanceBinary(vec3 p) {
-    float t = 0.0;
-    float f = 0.0;
-    float s = 0.0;
+
+vec3 hash3(vec3 p) {
+    return vec3(
+        hash1(p + vec3(1.0, 0.0, 0.0)),
+        hash1(p + vec3(0.0, 1.0, 0.0)),
+        hash1(p + vec3(0.0, 0.0, 1.0))
+    );
+}
+
+float sampleDistanceBinary(vec3 p) { // p: (0-1, 0-1, 0-1)
+    p = clamp(p, 0.0, 1.0);
+
+    uvec4 t = texture2D(topViews[0], vec2(p.x, 1.0 - p.z));
+    uvec4 f = texture2D(frontViews[0], p.xy);
+    uvec4 s = texture2D(sideViews[0], p.zy);
 
     float result = 0.0;
 
     #pragma unroll_loop_start
     for (int i = 0; i < ${LAYER_COUNT}; i++) {
         if (layerVisibility[i] == 1) {
-
-        t = texture2D(topViews[i], vec2(p.x, 1.0 - p.z)).a;
-        f = texture2D(frontViews[i], p.xy).a;
-        s = texture2D(sideViews[i], p.zy).a;
-
-        if (t < 0.5 && f < 0.5 && s < 0.5) {
-            result += 1.0;
-        }
-
+            float filled = float(all(notEqual(uvec3(t[i], f[i], s[i]), uvec3(0u))));
+            result = max(result, filled);
         }
     }
     #pragma unroll_loop_end
 
-    return result/${LAYER_COUNT}.0;
+    return result;
+}
+
+float sampleDistance(vec3 p) {
+    return sampleDistanceBinary(p);
 }
 
 // https://iquilezles.org/articles/normalsSDF/
 vec3 sampleNormal(vec3 p) {
-    return vec3(1,0,0);
-    // const float eps = 0.1; // or some other value
-    // const vec2 h = vec2(eps,0);
-    // return normalize( vec3(sampleDistanceBinary(p+h.xyy) - sampleDistanceBinary(p-h.xyy),
-    //                        sampleDistanceBinary(p+h.yxy) - sampleDistanceBinary(p-h.yxy),
-    //                        sampleDistanceBinary(p+h.yyx) - sampleDistanceBinary(p-h.yyx) ) );
+    const float eps = 28.0 / 256.0;
+    const vec3 dx = vec3(eps, 0.0, 0.0);
+    const vec3 dy = vec3(0.0, eps, 0.0);
+    const vec3 dz = vec3(0.0, 0.0, eps);
+    const int samples = 16;
+
+    vec3 normal = vec3(0.0);
+
+    #pragma unroll_loop_start
+    for (int i = 0; i < samples; i++) {
+        vec3 seed = round(p * 256.0 * 0.75) + float(i) * vec3(19.1, 31.7, 47.3);
+        vec3 jitter = (hash3(seed) - 0.5) * 2.0 * eps;
+        vec3 center = clamp(p + jitter, 0.0, 1.0);
+
+        float sx = sampleDistanceBinary(center + dx) - sampleDistanceBinary(center - dx);
+        float sy = sampleDistanceBinary(center + dy) - sampleDistanceBinary(center - dy);
+        float sz = sampleDistanceBinary(center + dz) - sampleDistanceBinary(center - dz);
+
+        normal += vec3(sx, sy, sz);
+    }
+    #pragma unroll_loop_end
+
+    if (dot(normal, normal) < 1e-5) {
+        return vec3(0.0, 1.0, 0.0);
+    }
+
+    return normalize(normal);
 }
 `;
 
@@ -245,6 +254,7 @@ float rand(vec2 co) {
 }
 
 ${sampleVolumeSnippet}
+${sampleNormalSnippet}
 
 void main() {
     gl_FragColor = vec4(1,1,1,1);
@@ -281,7 +291,19 @@ void main() {
 
         vec4 result = sampleVolume(vec3(mp.x, 1.0 - mp.y, mp.z));
         if (result.a > 0.0) {
-            gl_FragColor = result;
+            vec3 normal = sampleNormal(vec3(mp.x, 1.0 - mp.y, mp.z));
+            vec3 lightDir = vec3(-1.0, 1.0, -1.0);
+            vec3 lightDir2 = vec3(1.0, 0.5, 1.0);
+            // half lambert
+            float ndl = dot(normal, normalize(lightDir));
+            ndl = ndl * 0.5 + 0.5;
+            float ndl2 = dot(normal, normalize(lightDir2));
+            ndl2 = ndl2 * 0.5 + 0.5;
+            float diff = max(ndl + ndl2 * 0.5, 0.3);
+            //diff = smoothstep(0.5, 0.6, diff);
+            //diff = max(diff, 0.8);
+            gl_FragColor = vec4(result.rgb * diff, 1.0);
+            //gl_FragColor = vec4(normal, 1.0);
             gl_FragDepth = worldToDepth(p);
             break;
         }

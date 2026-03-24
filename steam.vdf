@@ -1,0 +1,32 @@
+"AppBuild"
+{
+    "AppID" "4547390"
+    "Desc" "Multi-platform build"
+
+    "BuildOutput" "steam_build_output"
+
+    "Depots"
+    {
+        "4547391" // Windows depot
+        {
+            "ContentRoot" "itmas-win32-x64"
+            "FileMapping"
+            {
+                "LocalPath" "*"
+                "DepotPath" "."
+                "recursive" "1"
+            }
+        }
+
+        "4547392" // Linux depot
+        {
+            "ContentRoot" "itmas-linux-x64"
+            "FileMapping"
+            {
+                "LocalPath" "*"
+                "DepotPath" "."
+                "recursive" "1"
+            }
+        }
+    }
+}
