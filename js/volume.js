@@ -207,6 +207,7 @@ export class VolumeMaterial extends ShaderMaterial {
         this.uniforms["frontViews"] = { type: "tv", value: this.frontViews };
         this.uniforms["sideViews"] = { type: "tv", value: this.sideViews };
         this.uniforms["layerVisibility"] = { value: Array(LAYER_COUNT).fill(1) };
+        this.uniforms["lightingEnabled"] = { value: 1 };
 
         this.vertexShader = `
 varying vec3 v_position;
@@ -227,6 +228,7 @@ uniform usampler2D topViews[${LAYER_COUNT/4}];
 uniform usampler2D frontViews[${LAYER_COUNT/4}];
 uniform usampler2D sideViews[${LAYER_COUNT/4}];
 uniform int layerVisibility[${LAYER_COUNT}];
+uniform int lightingEnabled;
 
 varying vec3 v_position;
 varying vec2 v_uv;
@@ -315,16 +317,22 @@ void main() {
 
         vec4 result = sampleVolume(vec3(mp.x, 1.0 - mp.y, mp.z));
         if (result.a > 0.0) {
-            vec3 normal = sampleNormal(vec3(mp.x, 1.0 - mp.y, mp.z));
-            vec3 lightDir = vec3(-1.0, 1.0, -1.0);
-            vec3 lightDir2 = vec3(1.0, 0.5, 1.0);
-            // half lambert
-            float ndl = dot(normal, normalize(lightDir));
-            ndl = ndl * 0.5 + 0.5;
-            float ndl2 = dot(normal, normalize(lightDir2));
-            ndl2 = ndl2 * 0.5 + 0.5;
-            float diff = clamp(ndl + ndl2 * 0.5, 0.0, 1.0);
-            gl_FragColor = vec4(result.rgb * diff, 1.0);
+            if (lightingEnabled == 1) {
+                vec3 normal = sampleNormal(vec3(mp.x, 1.0 - mp.y, mp.z));
+                vec3 lightDir = vec3(-1.0, 1.0, -1.0);
+                vec3 lightDir2 = vec3(1.0, 0.5, 1.0);
+                // half lambert
+                float ndl = dot(normal, normalize(lightDir));
+                ndl = ndl * 0.5 + 0.5;
+                float ndl2 = dot(normal, normalize(lightDir2));
+                ndl2 = ndl2 * 0.5 + 0.5;
+                float diff = clamp(ndl + ndl2 * 0.5, 0.0, 1.0);
+                diff = smoothstep(diff, 0.2, 0.4);
+                diff = clamp(diff * 1.3, 0.3, 1.0);
+                gl_FragColor = vec4(result.rgb * diff, 1.0);
+            } else {
+                gl_FragColor = vec4(result.rgb, 1.0);
+            }
             //gl_FragColor = vec4(normal, 1.0);
             gl_FragDepth = worldToDepth(p);
             break;

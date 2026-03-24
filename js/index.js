@@ -229,6 +229,13 @@ window.addEventListener('load', () => {
         let grid = document.getElementById("grid");
         grid.style.display = grid.style.display == "block" ? "grid" : "block";
     });
+    const lightingToggle = document.getElementById("lighting");
+    lightingToggle.addEventListener("click", () => {
+        volumeMaterial.uniforms.lightingEnabled.value =
+            volumeMaterial.uniforms.lightingEnabled.value === 1 ? 0 : 1;
+        lightingToggle.classList.toggle("active", volumeMaterial.uniforms.lightingEnabled.value === 1);
+    });
+
     document.getElementById("bounding-box").addEventListener("click", () => {
         boundingBox.visible = !boundingBox.visible;
     });
