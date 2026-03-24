@@ -275,39 +275,67 @@ function buildObjFromField(density, colors, resolution, isolevel, baseFilename, 
         return { x, y, z };
     }
 
-    function sampleColorStochastic(x, y, z, maxSteps = 32) {
+    function sampleColorAtIndex(ix, iy, iz) {
+        if (ix < 0 || iy < 0 || iz < 0 || ix >= resolution || iy >= resolution || iz >= resolution) {
+            return null;
+        }
+
+        const index = sampleIndex(ix, iy, iz) * 4;
+        if (colors[index + 3] <= 0)
+            return null;
+
+        return {
+            r: colors[index + 0] / 255,
+            g: colors[index + 1] / 255,
+            b: colors[index + 2] / 255,
+        };
+    }
+
+    function sampleNormalFinite(x, y, z) {
         const ix = clamp(Math.round(x), 0, resolution - 1);
         const iy = clamp(Math.round(y), 0, resolution - 1);
         const iz = clamp(Math.round(z), 0, resolution - 1);
 
-        const startIndex = sampleIndex(ix, iy, iz);
-        if (colors[(startIndex * 4) + 3] > 0) {
-            return {
-                r: colors[(startIndex * 4) + 0] / 255,
-                g: colors[(startIndex * 4) + 1] / 255,
-                b: colors[(startIndex * 4) + 2] / 255,
-            };
-        }
+        const dx = sampleDensity(ix + 1, iy, iz) - sampleDensity(ix - 1, iy, iz);
+        const dy = sampleDensity(ix, iy + 1, iz) - sampleDensity(ix, iy - 1, iz);
+        const dz = sampleDensity(ix, iy, iz + 1) - sampleDensity(ix, iy, iz - 1);
 
-        for (let step = 1; step <= maxSteps; step++) {
-            const distance = step;
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(2 * Math.random() - 1);
-            const dx = Math.round(distance * Math.sin(phi) * Math.cos(theta));
-            const dy = Math.round(distance * Math.sin(phi) * Math.sin(theta));
-            const dz = Math.round(distance * Math.cos(phi));
+        const length = Math.hypot(dx, dy, dz);
+        if (length < 1e-5)
+            return null;
 
-            const nx = clamp(ix + dx, 0, resolution - 1);
-            const ny = clamp(iy + dy, 0, resolution - 1);
-            const nz = clamp(iz + dz, 0, resolution - 1);
-            const index = sampleIndex(nx, ny, nz);
-            if (colors[(index * 4) + 3] <= 0)
-                continue;
-            return {
-                r: colors[(index * 4) + 0] / 255,
-                g: colors[(index * 4) + 1] / 255,
-                b: colors[(index * 4) + 2] / 255,
-            };
+        return { x: dx / length, y: dy / length, z: dz / length };
+    }
+
+    function sampleColorInward(x, y, z, maxSteps = 32, stepSize = 0.5) {
+        const ix = clamp(Math.round(x), 0, resolution - 1);
+        const iy = clamp(Math.round(y), 0, resolution - 1);
+        const iz = clamp(Math.round(z), 0, resolution - 1);
+
+        const startColor = sampleColorAtIndex(ix, iy, iz);
+        if (startColor)
+            return startColor;
+
+        const normal = sampleNormalFinite(x, y, z);
+        if (!normal)
+            return { r: 0, g: 0, b: 0 };
+
+        let px = x;
+        let py = y;
+        let pz = z;
+
+        for (let step = 0; step < maxSteps; step++) {
+            px += normal.x * stepSize;
+            py += normal.y * stepSize;
+            pz += normal.z * stepSize;
+
+            const nx = Math.round(px);
+            const ny = Math.round(py);
+            const nz = Math.round(pz);
+
+            const color = sampleColorAtIndex(nx, ny, nz);
+            if (color)
+                return color;
         }
 
         return { r: 0, g: 0, b: 0 };
@@ -338,11 +366,11 @@ function buildObjFromField(density, colors, resolution, isolevel, baseFilename, 
                 for (const tri of triangles) {
                     let indices = [];
                     if (useTexture) {
-                        const flatColor = sampleColorStochastic(tri[0].x, tri[0].y, tri[0].z);
+                        const flatColor = sampleColorInward(tri[0].x, tri[0].y, tri[0].z);
                         indices = tri.map((v) => addVertex(v, flatColor));
                     } else {
                         indices = tri.map((v) => {
-                            const color = sampleColorStochastic(v.x, v.y, v.z);
+                            const color = sampleColorInward(v.x, v.y, v.z);
                             return addVertex(v, color);
                         });
                     }
