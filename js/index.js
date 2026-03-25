@@ -31,7 +31,8 @@ import ExportMCWorker from './exportMC.worker.js';
 
 // TODO:
 //  - Favicon/meta tags
-// more layers?, tablet?
+// more layers?
+// background color?
 // steam page
 //  - Jump Flood/SDF:
 //      - Shading/normals

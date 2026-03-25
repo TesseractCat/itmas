@@ -128,7 +128,10 @@ float sampleDistanceBinary(vec3 p) { // p: (0-1, 0-1, 0-1)
     }
     #pragma unroll_loop_end
 
-    return result;
+    if (any(greaterThan(p, vec3(1.0))) || any(lessThan(p, vec3(0.0))))
+        return 0.0;
+    else
+        return result;
 }
 
 float sampleDistance(vec3 p) {
@@ -178,8 +181,8 @@ vec3 sampleNormal(vec3 p) {
     }
     #pragma unroll_loop_end
 
-    if (dot(normal, normal) < 1e-5) {
-        return vec3(0.0, 1.0, 0.0);
+    if (dot(normal, normal) < 1e-1) {
+        return normalize(vec3(0.5) - p);
     }
 
     return normalize(normal);
@@ -329,10 +332,10 @@ void main() {
                 diff = smoothstep(diff, 0.2, 0.4);
                 diff = clamp(diff * 1.3, 0.3, 1.0);
                 gl_FragColor = vec4(result.rgb * diff, 1.0);
+                //gl_FragColor = vec4(normal, 1.0);
             } else {
                 gl_FragColor = vec4(result.rgb, 1.0);
             }
-            //gl_FragColor = vec4(normal, 1.0);
             gl_FragDepth = worldToDepth(p);
             break;
         }

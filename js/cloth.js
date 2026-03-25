@@ -1,5 +1,5 @@
 import { aliasedLine, aliasedCircle } from './aliased';
-import { Texture, DataTexture, Vector2, RGBAFormat, UnsignedShortType, RGBAIntegerFormat } from 'three';
+import { Texture, DataTexture, Vector2, RGBAFormat, UnsignedShortType, RGBAIntegerFormat, ClampToEdgeWrapping } from 'three';
 import { LAYER_COUNT } from './volume';
 
 export const BrushType = {
